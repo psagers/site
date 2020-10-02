@@ -4,6 +4,6 @@
 curl \
     -i \
     -X PUT \
-    --data-binary @../../look/assets/logo/white-plain.png \
+    --data-binary @juxt-logo.png \
     -H "Content-Type: image/png" \
     http://localhost:8888/juxt-logo.png $*
