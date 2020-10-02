@@ -25,6 +25,11 @@
          :sha "0ec01b92c995926d73ae28c7313194edef914247"}
         #_{:local/root "../spin"}
 
+        juxt/vext
+        {:git/url "https://github.com/juxt/spin.git"
+         :sha "9e109bb43b0cb2c31ec439e7438c7bfb298ff16d"}
+        #_{:local/root "../vext"}
+
         hiccup {:mvn/version "2.0.0-alpha2"}
         metosin/jsonista {:mvn/version "0.2.7"}}
 
