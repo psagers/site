@@ -78,17 +78,31 @@
               vtxreq
               (reify io.vertx.core.Handler
                 (handle [_ _]
-                  (prn "attributes are" (into {} (.formAttributes vtxreq)))
-                  (respond
-                   {:status 200
-                    :headers {"content-type" "text/plain;charset=utf8"}
-                    :body "Thanks"}))))))))
+                  (let [data (into {} (.formAttributes vtxreq))
+                        eid (java.util.UUID/randomUUID)
+                        content-location (str (:juxt.site/url resource) "/" eid)
+                        e (into {:crux.db/id eid
+                                 :juxt.site/url content-location}
+                                (map (fn [[k v]] [(keyword k) v]) data))]
+
+                    (crux/submit-tx
+                     crux
+                     [[:crux.tx/put e]])
+
+                    (crux/sync crux)
+
+                    (respond
+                     {:status 200
+                      :headers
+                      {"content-type" "text/html;charset=utf8"
+                       "content-location" content-location}
+                      :body (format "<h1>Thanks</h1><p>Your holiday can be edited <a href='%s'>here</a>.</p>" content-location)})))))))))
 
      spin.resource/PUT
      (put [_ server resource response request respond raise]
        (let [ct (reap/content-type (get-in request [:headers "content-type"]))]
          (case (:juxt.http/type ct)
-           "image" ;; Allow upload of static image content
+           ("image" "video") ;; Allow upload of static image content
            (->
             (cstore/post-content content-store (.toFlowable (:juxt.vext/request request)))
             (.subscribe
@@ -106,7 +120,7 @@
                  (respond
                   (merge
                    response
-                   {:body "Thanks, that looks like a wonderful image!\n"}))))
+                   {:body (format "Thanks, that looks like a wonderful %s!\n" (:juxt.http/type ct))}))))
              (reify io.reactivex.functions.Consumer ;; sad path!
                (accept [_ t]
                  (raise t)))))))))
