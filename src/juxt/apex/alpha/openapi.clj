@@ -4,6 +4,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str]
+   [clojure.walk :refer [postwalk]]
    [clojure.pprint :refer [pprint]]
    [crux.api :as crux]
    [juxt.jinx.alpha :as jinx]
@@ -12,6 +13,7 @@
    [hiccup.page :as hp]
    [integrant.core :as ig]
    [juxt.apex.alpha :as apex]
+   [juxt.apex.alpha.parameters :refer [extract-params-from-request]]
    [juxt.site.alpha :as site]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
    [juxt.site.alpha.perf :refer [fast-get-in]]
@@ -124,35 +126,48 @@
           paths))))))
 
 
-(defn ->query [input]
-  (reduce
-   (fn [acc [k v]]
-     (assoc acc (keyword k)
-            (case (keyword k)
-              :find (mapv symbol v)
-              :where (mapv (fn [[e a v]]
-                             (cond->
-                                 [(cond-> e
-                                    (string? e) symbol)
-                                  (keyword a)]
-                               v (conj (symbol v))))
-                           v)
-              :limit (symbol v))))
-   {} input))
+(defn ->query [input params]
+  (let [input (postwalk (fn [x]
+                      (if (and (map? x)
+                               (contains? x "name")
+                               (= (get x "in") "query")
+                               )
+                        (get-in params [:query (get x "name") :value])
+                        x)
+                          ) input)]
+    (reduce
+     (fn [acc [k v]]
+       (assoc acc (keyword k)
+              (case (keyword k)
+                :find (mapv symbol v)
+                :where (mapv (fn [[e a v]]
+                               (cond->
+                                   [(cond-> e
+                                      (string? e) symbol)
+                                    (keyword a)]
+                                 v (conj (symbol v))))
+                             v)
+                :limit v
+                )))
+     {} input)))
 
 ;; Possibly promote up into site - by default we output the resource state, but
 ;; there may be a better rendering of collections, which can be inferred from
 ;; the schema being an array and use the items subschema. We can also use the
 ;; resource state as a
-(defmethod generate-representation-body ::entity-bytes-generator [resource representation db]
+(defmethod generate-representation-body ::entity-bytes-generator [request resource representation db]
 
-  (let [query
+  (let [param-defs
+        (get-in resource [:juxt.apex.alpha/operation "parameters"])
+
+        query
         (get-in resource [:juxt.apex.alpha/operation "responses" "200" "crux/query"])
 
-        _ (pprint query)
-        _ (pprint (->query query))
+        ;;_ (pprint query)
+        ;;_ (pprint (->query query))
 
-        resource-state (crux/q db (->query query))
+        resource-state (for [[e] (crux/q db (->query query (extract-params-from-request request param-defs)))]
+                         (crux/entity db e))
 
         #_resource-state
         #_(reduce-kv
@@ -178,9 +193,17 @@
 
        (hp/html5
         [:h1 "Crux entity"]
+
+        [:h2 "Query"]
+        [:pre (with-out-str (pprint query))]
+        [:h2 "Crux Query"]
+        [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]
+        [:h2 "Parameters"]
+        [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]
+        [:h2 "Result"]
         [:pre (with-out-str (pprint resource-state))])))))
 
-(defmethod generate-representation-body ::api-console-generator [resource representation db]
+(defmethod generate-representation-body ::api-console-generator [request resource representation db]
   (.getBytes
    (.toString
     (doto (StringBuilder.)

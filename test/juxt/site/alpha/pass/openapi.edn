@@ -31,8 +31,7 @@
    {:description "Returns all user-groups"
     :operationId "findUserGroups"
     :parameters
-    [
-     {:name "limit"
+    [{:name "limit"
       :in "query"
       :description "Maximum number of results to return"
       :required false
@@ -40,9 +39,8 @@
     :responses
     {200 {:crux/query
           {:find [e]
-           :where [[e :owner]]
-           ;;:limit $limit
-           }
+           :where [[e :owner owner]]
+           :limit {:in "query" :name "limit"}}
 
           :content
           {"application/json"
@@ -50,9 +48,7 @@
             {:type "array"
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
            "text/html;charset=utf-8" {}
-           "text/csv" {}}}
-
-     }}}
+           "text/csv" {}}}}}}
 
   ;; Option 1: Infer from the path - if uri is a crux.db/id, just look it up and return
   ;; Option 2:
@@ -84,7 +80,8 @@
 
       :content
       {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUserGroup"}}
-       "text/html;charset=utf-8" {}}}}}
+       "text/html;charset=utf-8" {}
+       "text/csv" {"cols" ["name" "owner"]}}}}}
 
    :put
    {:description "Upserts a user-group"

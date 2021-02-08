@@ -106,7 +106,7 @@
          content (.getBytes content (or charset "utf-8"))
          bytes bytes
          path-item-object (.getBytes (get-in path-item-object ["get" "description"]))
-         bytes-generator (generate-representation-body resource selected-representation db))))))
+         bytes-generator (generate-representation-body request resource selected-representation db))))))
 
 (defn receive-representation [request resource date]
   (let [{metadata ::spin/representation-metadata
