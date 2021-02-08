@@ -72,11 +72,51 @@
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
 
+(def put-owners-user-group-response2
+  (with-status-message
+    "PUT user-group 'owners'"
+    (curl/put
+     (url "/_crux/pass/user-groups/owners2")
+     {:headers {"content-type" "application/json"}
+      :body (json/generate-string
+             {:name "Owners2"
+              :owner "crux"})
+      :throw false
+      :basic-auth CRUX_ADMIN
+      :debug CURL_DEBUG})))
+
+(def put-owners-user-group-response3
+  (with-status-message
+    "PUT user-group 'owners'"
+    (curl/put
+     (url "/_crux/pass/user-groups/owners3")
+     {:headers {"content-type" "application/json"}
+      :body (json/generate-string
+             {:name "Owners3"
+              :owner "crux"})
+      :throw false
+      :basic-auth CRUX_ADMIN
+      :debug CURL_DEBUG})))
+
 (println (:body put-owners-user-group-response))
 
 (assert (#{200 201} (:status put-owners-user-group-response)))
 
-(def get-owners-user-group-response
+(def get-user-groups-response
+  (with-status-message
+    "GET user-groups"
+    (curl/get
+     (url "/_crux/pass/user-groups")
+     {:headers {"accept" "application/json"}
+      :throw true
+      :basic-auth CRUX_ADMIN
+      :debug CURL_DEBUG})))
+
+(assert (= 200 (:status get-user-groups-response)))
+
+(:body get-user-groups-response)
+
+#_(def get-owners-user-group-response
   (with-status-message
     "GET user-group 'owners'"
     (curl/get
@@ -86,8 +126,8 @@
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
 
-(assert (= 200 (:status get-owners-user-group-response)))
-(:body get-owners-user-group-response)
+#_(assert (= 200 (:status get-owners-user-group-response)))
+#_(:body get-owners-user-group-response)
 
 #_(def put-owner-response
   (with-status-message

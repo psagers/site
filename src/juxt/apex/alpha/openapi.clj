@@ -59,6 +59,7 @@
                            :openapi openapi
                            :rel-request-path (subs abs-request-path (count server-url))})))
                     (get openapi "servers")))
+                 ;; Iterate across all APIs in this server, looking for a match
                  (crux/q db '{:find [openapi-eid openapi]
                               :where [[openapi-eid :juxt.apex.alpha/openapi openapi]]}))]
 
@@ -94,7 +95,10 @@
 
                       operation-object (get path-item-object (name (:request-method request)))]
 
-                  {::spin/methods
+                  {:description "OpenAPI matched path"
+                   ::apex/openid-path path
+                   ::apex/openid-path-params path-params
+                   ::spin/methods
                    (keep
                     #{:get :head :post :put :delete :options :trace :connect}
                     (let [methods (set
@@ -119,36 +123,62 @@
 
           paths))))))
 
+
+(defn ->query [input]
+  (reduce
+   (fn [acc [k v]]
+     (assoc acc (keyword k)
+            (case (keyword k)
+              :find (mapv symbol v)
+              :where (mapv (fn [[e a v]]
+                             (cond->
+                                 [(cond-> e
+                                    (string? e) symbol)
+                                  (keyword a)]
+                               v (conj (symbol v))))
+                           v)
+              :limit (symbol v))))
+   {} input))
+
 ;; Possibly promote up into site - by default we output the resource state, but
 ;; there may be a better rendering of collections, which can be inferred from
 ;; the schema being an array and use the items subschema. We can also use the
 ;; resource state as a
 (defmethod generate-representation-body ::entity-bytes-generator [resource representation db]
-  (let [resource-state
-        (reduce-kv
+
+  (let [query
+        (get-in resource [:juxt.apex.alpha/operation "responses" "200" "crux/query"])
+
+        _ (pprint query)
+        _ (pprint (->query query))
+
+        resource-state (crux/q db (->query query))
+
+        #_resource-state
+        #_(reduce-kv
          (fn [acc k v]
            (cond-> acc
-             (not (and (keyword? k)
-                       (some->>
-                        (namespace k)
-                        (re-matches #"juxt\.(reap|spin|site|pick)\..*"))))
+             true #_(not (and (keyword? k)
+                              (some->>
+                               (namespace k)
+                               (re-matches #"juxt\.(reap|spin|site|pick)\..*"))))
              (assoc k v)))
          {}
-         representation)]
+         resource
+         ;;representation
+         )]
     ;; TODO: Might want to filter out the spin metadata at some point
     (case (::spin/content-type representation)
       "application/json"
       ;; TODO: Might want to filter out the spin metadata at some point
-      (json/write-value-as-bytes resource-state)
+      (json/write-value-as-bytes query)
 
       "text/html;charset=utf-8"
       (.getBytes
 
        (hp/html5
         [:h1 "Crux entity"]
-        [:pre (with-out-str (pprint resource-state))]
-        )
-       ))))
+        [:pre (with-out-str (pprint resource-state))])))))
 
 (defmethod generate-representation-body ::api-console-generator [resource representation db]
   (.getBytes
@@ -204,9 +234,6 @@
   "application/json"
   [request resource new-representation old-representation crux-node]
 
-  #_(prn "old-representation is")
-  #_(println (with-out-str (pprint old-representation)))
-
   (let [date (java.util.Date.)
         last-modified date
         etag (format "\"%s\"" (subs (util/hexdigest (::spin/bytes new-representation)) 0 32))
@@ -232,8 +259,6 @@
     ;; TODO: Validate new-representation against the JSON schema in the openapi.
 
     (when-not (::jinx/valid? validation-results)
-      (prn "validation-results")
-      (println (with-out-str (pprint validation-results)))
       (throw
        (ex-info
         "Schema validation failed"

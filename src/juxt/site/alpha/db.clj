@@ -26,9 +26,9 @@
 
 ;;(password/encrypt "password")
 
-(defmethod ig/init-key ::crux [_ _]
+(defmethod ig/init-key ::crux [_ crux-opts]
   (println "Starting Crux node")
-  (let [node (crux/start-node {})]
+  (let [node (crux/start-node crux-opts)]
     (seed-database! node)
     node))
 

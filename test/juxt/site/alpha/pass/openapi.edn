@@ -31,18 +31,32 @@
    {:description "Returns all user-groups"
     :operationId "findUserGroups"
     :parameters
-    [{:name "limit"
+    [
+     {:name "limit"
       :in "query"
       :description "Maximum number of results to return"
       :required false
       :schema {:type "integer"}}]
     :responses
-    {200 {:content
+    {200 {:crux/query
+          {:find [e]
+           :where [[e :owner]]
+           ;;:limit $limit
+           }
+
+          :content
           {"application/json"
            {:schema
             {:type "array"
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
-           }}}}}
+           "text/html;charset=utf-8" {}
+           "text/csv" {}}}
+
+     }}}
+
+  ;; Option 1: Infer from the path - if uri is a crux.db/id, just look it up and return
+  ;; Option 2:
+
 
   "/user-groups/{id}"
   {:parameters
@@ -59,6 +73,15 @@
     :responses
     {200
      {:description "Single identified user-group"
+
+      :crux/query {:find [name owner desc]
+                   :where [[e :crux.db/id ?uri]
+                           [(uri ?idstr) ?uri]
+                           [(str "/user-groups/" ?id) ?idstr]
+                           [(get $path-params "id") ?id]]
+                   :in [$path-params]
+                   :limit $limit}
+
       :content
       {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUserGroup"}}
        "text/html;charset=utf-8" {}}}}}
@@ -149,7 +172,8 @@
       :format "uri-reference"
       ;; This hints that the property owner is a reference to a Crux
       ;; entity
-      :juxt.jinx.alpha/as "uri"}}}
+      :juxt.jinx.alpha/as "uri"
+      }}}
 
    "Owned"
    {"$id" "/schemas/Owned"
@@ -209,7 +233,8 @@
     [{"$ref" "#/components/schemas/Named"}
      {"$ref" "#/components/schemas/Owned"}
      {:properties
-      {"description"
+      {"type" {:const "UserGroup"}
+       "description"
        {:type "string"}
        "roles"
        {:type "array"

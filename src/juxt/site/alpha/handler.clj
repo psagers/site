@@ -132,6 +132,7 @@
   (let [new-representation (receive-representation request resource date)]
     (assert new-representation)
 
+    ;; TODO: Promote into spin
     (when (get-in request [:headers "content-range"])
       (throw
        (ex-info
