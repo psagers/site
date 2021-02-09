@@ -12,17 +12,7 @@
  :servers [{:url "/_crux/pass"}]
 
  :paths
- {"/info"
-  {:get
-   {:description "Get the current API info"
-    :operationId "getStatus"
-    :responses
-    {200
-     {"content"
-      {"application/json" {}
-       "text/html;charset=utf-8" {}}}}}}
-
-  "/user-groups"
+ {"/user-groups"
   {:options
    {:responses
     {200 {:description "User groups contain users and a set of roles from which they can choose to assume."}}}
