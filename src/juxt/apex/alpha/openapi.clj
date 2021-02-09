@@ -126,6 +126,19 @@
           paths))))))
 
 
+;;[a]
+;;[a :foo]
+;;[a :foo b]
+
+
+;;[(pred )  ]
+;;[(pred )  foo]
+;;[(pred .. .. ) [foo bar]]
+
+
+#_(let [clause '[a :b c]]
+  (and (vector? clause) (every? (comp not coll?) clause)))
+
 (defn ->query [input params]
   (let [input (postwalk (fn [x]
                       (if (and (map? x)
@@ -133,23 +146,41 @@
                                (= (get x "in") "query"))
                         (get-in params [:query (get x "name") :value]
                                 (get-in params [:query (get x "name") :param "default"]))
-                        x)
-                          ) input)]
+                        x))
+                        input)]
     (reduce
      (fn [acc [k v]]
        (assoc acc (keyword k)
               (case (keyword k)
                 :find (mapv symbol v)
-                :where (mapv (fn [[e a v]]
-                               (cond->
-                                   [(cond-> e
-                                      (string? e) symbol)
-                                    (keyword a)]
-                                 v (conj (symbol v))))
+                :where (mapv (fn [clause]
+                               (cond
+                                 (and (vector? clause) (every? (comp not coll?) clause))
+                                 (mapv (fn [item txf] (txf item)) clause [symbol keyword symbol])
+
+                                 ;;(and (vector? clause) (list? (first clause)))
+                                 ;;(mapv (fn [item txf] (txf item)) clause [#(fn ) symbol])
+                                 ))
+
                              v)
+
                 :limit v
+                :in (mapv symbol v)
                 )))
      {} input)))
+
+
+
+#_(defn uri [x] (java.net.URI. x))
+
+#_(let [path-params {"id" "owners"}
+        path (java.net.URI. "/_crux/pass/user-groups/owners")]
+  (crux/q
+   (dev/db)
+   '{:find [(eql/project e [*])]
+     :where [[e :crux.db/id $path]]
+     :in [$path]}
+   path))
 
 ;; Possibly promote up into site - by default we output the resource state, but
 ;; there may be a better rendering of collections, which can be inferred from
@@ -163,25 +194,26 @@
         query
         (get-in resource [:juxt.apex.alpha/operation "responses" "200" "crux/query"])
 
+        crux-query
+        (when query (->query query (extract-params-from-request request param-defs)))
+
         ;;_ (pprint query)
         ;;_ (pprint (->query query))
 
-        resource-state (for [[e] (crux/q db (->query query (extract-params-from-request request param-defs)))]
-                         (crux/entity db e))
+        #_[path-params {"id" "owners"}
+           path (java.net.URI. "/_crux/pass/user-groups/owners")]
+        ;;path (java.net.URI. )
 
-        #_resource-state
-        #_(reduce-kv
-           (fn [acc k v]
-             (cond-> acc
-               true #_(not (and (keyword? k)
-                                (some->>
-                                 (namespace k)
-                                 (re-matches #"juxt\.(reap|spin|site|pick)\..*"))))
-               (assoc k v)))
-           {}
-           resource
-           ;;representation
-           )]
+        resource-state
+        (if query
+          (for [[e] (crux/q db
+                            crux-query
+                            ;; Could put some in params here
+                            )]
+            (crux/entity db e))
+          (crux/entity db (java.net.URI. (:uri request))))
+
+        ]
     ;; TODO: Might want to filter out the spin metadata at some point
     (case (::spin/content-type representation)
       "application/json"
@@ -189,43 +221,70 @@
       (json/write-value-as-bytes (->query query (extract-params-from-request request param-defs)))
 
       "text/html;charset=utf-8"
-      (.getBytes
+      (let [config (get-in resource [:juxt.apex.alpha/operation "responses" "200" "content" (::spin/content-type representation)])
+            ]
+        (.getBytes
 
-       ;; We can get config from openapi
-       (hp/html5
-        [:h1 (get-in resource [:juxt.apex.alpha/operation "responses" "200" "content" "text/html;charset=utf-8" "title"])]
+         ;; We can get config from openapi
+         (hp/html5
+          [:h1 (get config "title" "No title")]
 
-        (comment
-          [:h2 "Resource"]
-          [:pre (with-out-str (pprint resource))]
-          [:h2 "Query"]
-          [:pre (with-out-str (pprint query))]
-          [:h2 "Crux Query"]
-          [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]
-          [:h2 "Parameters"]
-          [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]
-          [:h2 "Result"]
-          [:pre (with-out-str (pprint resource-state))])
+          ;; Get :path-params = {"id" "owners"}
 
-        (let [fields (keys (first resource-state))]
-          [:table {:style "border: 1px solid #888; border-collapse: collapse"}
-           [:tbody
-            (for [row resource-state]
-              [:tr
+          (cond
+            (= (get config "type") "table")
+            (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
+              [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
+               [:thead
+                [:tr
+                 (for [field fields]
+                   [:th {:style "border: 1px solid #888; padding: 4pt; text-align: left"} (pr-str field)])]]
+               [:tbody
+                (for [row resource-state]
+                  [:tr
+                   (for [field fields
+                         :let [val (get row field)]]
+                     [:td {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
+                      (cond
+                        (uri? val)
+                        [:a {:href val} val]
+                        :else
+                        (get row field))])])]])
+
+            :else
+            (let [fields (distinct (concat [:crux.db/id] (keys resource-state)))]
+              [:dl
                (for [field fields
-                     :let [val (get row field)]]
-                 [:td {:style "border: 1px solid #888"}
-                  (cond
-                    (uri? val)
-                    [:a {:href val} val]
-                    :else
-                    (pr-str (get row field)))]
-                 )
-               ]
-              )
-            ]])
-        )))))
+                     :let [val (get resource-state field)]]
+                 (list
+                  [:dt
+                   (pr-str field)]
+                  [:dd
+                   (cond
+                     (uri? val)
+                     [:a {:href val} val]
+                     :else
+                     (get resource-state field))]))]))
 
+          [:h2 "Debug"]
+          [:h3 "Resource"]
+          [:pre (with-out-str (pprint resource))]
+          (when query
+            (list
+             [:h3 "Query"]
+             [:pre (with-out-str (pprint query))]))
+          (when crux-query
+            (list
+             [:h3 "Crux Query"]
+             [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]))
+
+          (when (seq param-defs)
+            (list
+             [:h3 "Parameters"]
+             [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]))
+
+          [:h3 "Resource state"]
+          [:pre (with-out-str (pprint resource-state))]))))))
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db]
   (.getBytes
@@ -356,8 +415,9 @@
                  bytes (byte-array size)
                  path (second
                        (re-matches #"META-INF/resources/webjars/swagger-ui/[0-9.]+/(.*)"
-                                   nm))
-                 uri (URI. (format "/_crux/swagger-ui/%s" path))]
+                                   nm))]
+           :when path
+           :let [uri (URI. (format "/_crux/swagger-ui/%s" path))]
            :when (pos? size)]
        (do
          (.read (.getInputStream jar je) bytes 0 size)

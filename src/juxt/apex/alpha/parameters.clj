@@ -292,7 +292,7 @@
     {}
     (reduce                             ; reduce over paramdefs
      (fn [acc {:strs [name required schema] :as paramdef}]
-       (let [[pkey pval] (find params (keyword name))]
+       (let [[pkey pval] (find params name)]
          (if pkey
            (let [validation
                  (jinx.validate/validate schema pval {:coercions coercions})]
@@ -302,10 +302,10 @@
               (cond-> {:param paramdef
                        :validation validation}
 
-                (:valid? validation)
-                (assoc :value (:instance validation))
+                (::jinx/valid? validation)
+                (assoc :value (::jinx/instance validation))
 
-                (not (:valid? validation))
+                (not (::jinx/valid? validation))
                 (assoc :apex/error
                        {:apex.error/message "Path parameter not valid according to schema"}))))
 

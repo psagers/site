@@ -92,8 +92,7 @@
      (url "/_crux/pass/user-groups/owners3")
      {:headers {"content-type" "application/json"}
       :body (json/generate-string
-             {:name "Owners3"
-              :owner "crux"})
+             {:name "Owners3"})
       :throw false
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
