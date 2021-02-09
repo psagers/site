@@ -38,10 +38,11 @@
       :default 100
       :schema {:type "integer"}}]
     :responses
-    {200 {:crux/query {:find [e]
-                       :where [[e :type t]]
-                       :args [{t "UserGroup"}]
-                       :limit {:in "query" :name "limit"}}
+    {200 {:crux/query
+          {:find [e]
+           :where [[e :type t]]
+           :args [{t "UserGroup"}]
+           :limit {:in "query" :name "limit"}}
 
           :content
           {"application/json"
@@ -49,7 +50,8 @@
             {:type "array"
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
 
-           "text/html;charset=utf-8" {"title" "User Groups" "type" "table"}
+           "text/html;charset=utf-8" {"title" "User Groups"
+                                      "type" "table"}
 
            "text/csv" {"cols" ["id" "owners"]}}}}}}
 
@@ -264,10 +266,15 @@
    "User"
    {"$id" "/schemas/User"
     :allOf
-    [{:type "object"
-      :required ["email" "userGroup"]
+    [{"$ref" "#/components/schemas/Named"}
+     {"$ref" "#/components/schemas/Typed"}
+     {:type "object"
+      :required ["email" "password" #_"userGroups"]
+      :juxt.jinx.alpha/keyword-mappings {"email" "email"
+                                         "password" "password"}
       :properties
-      {"email"
+      {"type" {:const "User"}
+       "email"
        {:type "string"
         :format "email"}
        "password"
@@ -275,15 +282,16 @@
         ;;:crux/classification :crux/restricted
         :juxt.jinx.alpha/as "password"
         :description "The user's password, stored as a hash at rest, and only
-        transmitted in the clear when being set."
-        }
-       "userGroup"
-       {:type "string"
-        :format "uri-reference"
-        :juxt.jinx.alpha/as "uri"
-        :crux/reference? true
-        ;;:crux.json-schema/schema-of-target "/schemas/IdentifiedUserGroup"
-        }}}]}
+        transmitted in the clear when being set."}
+       #_"userGroups"
+       #_{:type "array"
+        :items
+        {:type "string"
+         :format "uri-reference"
+         :juxt.jinx.alpha/as "uri"
+         :crux/reference? true
+         ;;:crux.json-schema/schema-of-target "/schemas/IdentifiedUserGroup"
+         }}}}]}
 
    "IdentifiedUser"
    {"$id" "/schemas/IdentifiedUser"

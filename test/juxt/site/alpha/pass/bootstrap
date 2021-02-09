@@ -59,48 +59,25 @@
 ;; Now we are ready to PUT a user-group that will the owners of this Crux Site
 ;; instance will belong to.
 
-(def put-owners-user-group-response
-  (with-status-message
-    "PUT user-group 'owners'"
-    (curl/put
-     (url "/_crux/pass/user-groups/owners")
-     {:headers {"content-type" "application/json"}
-      :body (json/generate-string
-             {:type "UserGroup"
-              :name "Owners"})
-      :throw false
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
+;; TODO: Do a loop
 
-(def put-owners-user-group-response2
-  (with-status-message
-    "PUT user-group 'superusers'"
-    (curl/put
-     (url "/_crux/pass/user-groups/superusers")
-     {:headers {"content-type" "application/json"}
-      :body (json/generate-string
-             {:type "UserGroup"
-              :name "Superusers"})
-      :throw false
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
-
-(def put-owners-user-group-response3
-  (with-status-message
-    "PUT user-group 'admins'"
-    (curl/put
-     (url "/_crux/pass/user-groups/admins")
-     {:headers {"content-type" "application/json"}
-      :body (json/generate-string
-             {:type "UserGroup"
-              :name "Administrators"})
-      :throw false
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
-
-(println (:body put-owners-user-group-response))
-
-(assert (#{200 201} (:status put-owners-user-group-response)))
+(doseq [{:keys [id name]}
+        [{:id "owners" :name "Owners"}
+         {:id "superusers" :name "Superusers"}
+         {:id "admins" :name "Administrators"}]]
+  (let [response
+        (with-status-message
+          (format "PUT user-group '%s'" id)
+          (curl/put
+           (url (format "/_crux/pass/user-groups/%s" id))
+           {:headers {"content-type" "application/json"}
+            :body (json/generate-string
+                   {:type "UserGroup"
+                    :name name})
+            :throw false
+            :basic-auth CRUX_ADMIN
+            :debug CURL_DEBUG}))]
+    (assert (#{200 201} (:status response)))))
 
 (def get-user-groups-response
   (with-status-message
@@ -113,8 +90,60 @@
       :debug CURL_DEBUG})))
 
 (assert (= 200 (:status get-user-groups-response)))
-
 (:body get-user-groups-response)
+
+(def get-user-group-response
+  (with-status-message
+    "GET example user-group"
+    (curl/get
+     (url "/_crux/pass/user-groups/owners")
+     {:headers {"accept" "application/json"}
+      :throw true
+      :basic-auth CRUX_ADMIN
+      :debug CURL_DEBUG})))
+
+(assert (= 200 (:status get-user-group-response)))
+
+
+(doseq [{:keys [id name email password groups]}
+        [{:id "juxtjdt"
+          :name "Jeremy Taylor"
+          :email "jdt@juxt.pro"
+          :password "BlueCheese"
+          :groups ["/_crux/pass/user-groups/superusers"
+                   "/_crux/pass/user-groups/owners"
+                   "/_crux/pass/user-groups/admins"]}
+
+         {:id "juxtmal"
+          :name "Malcolm Sparks"
+          :email "mal@juxt.pro"
+          :password "HarryFord1782"
+          :groups ["/_crux/pass/user-groups/superusers"
+                   "/_crux/pass/user-groups/owners"]}
+
+         {:id "juxttim"
+          :name "Tim Greene"
+          :email "tim@juxt.pro"
+          :password "BristolRoversAreTheBest"
+          :groups ["/_crux/pass/user-groups/admins"]}]]
+
+  (let [response
+        (with-status-message
+          (format "PUT user '%s'" id)
+          (curl/put
+           (url (format "/_crux/pass/users/%s" id))
+           {:headers {"content-type" "application/json"}
+            :body (json/generate-string
+                   {"type" "User"
+                    "email" email
+                    "name" name
+                    "password" password
+                    ;;"userGroups" groups
+                    })
+            :throw false
+            :basic-auth CRUX_ADMIN
+            :debug CURL_DEBUG}))]
+    (assert (#{200 201} (:status response)))))
 
 #_(def get-owners-user-group-response
   (with-status-message
