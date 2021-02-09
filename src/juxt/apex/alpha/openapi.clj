@@ -353,6 +353,9 @@
 
     ;; TODO: Validate new-representation against the JSON schema in the openapi.
 
+    (println "Post validation, before post-processing")
+    (pprint (update new-representation ::spin/bytes #(String. %)))
+
     (when-not (::jinx/valid? validation-results)
       (pprint validation-results)
       (throw
@@ -363,10 +366,14 @@
           ;; TODO: Content negotiation for error responses
           :body (with-out-str (pprint validation-results))}})))
 
+
     (let [validation (-> validation-results process-transformations process-keyword-mappings)
           instance (::jinx/instance validation)]
 
       (assert (:crux.db/id instance) "The doc must contain an entry for :crux.db/id")
+
+      (println "Instance, ready to submit is:")
+      (pprint instance)
 
       ;; Since this resource is 'managed' by the locate-resource in this ns, we
       ;; don't have to worry about spin attributes - these will be provided by

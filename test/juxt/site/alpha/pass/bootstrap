@@ -104,7 +104,6 @@
 
 (assert (= 200 (:status get-user-group-response)))
 
-
 (doseq [{:keys [id name email password groups]}
         [{:id "juxtjdt"
           :name "Jeremy Taylor"
@@ -138,8 +137,7 @@
                     "email" email
                     "name" name
                     "password" password
-                    ;;"userGroups" groups
-                    })
+                    "userGroups" groups})
             :throw false
             :basic-auth CRUX_ADMIN
             :debug CURL_DEBUG}))]

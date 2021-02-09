@@ -271,7 +271,8 @@
      {:type "object"
       :required ["email" "password" #_"userGroups"]
       :juxt.jinx.alpha/keyword-mappings {"email" "email"
-                                         "password" "password"}
+                                         "password" "password"
+                                         "userGroups" "user-groups"}
       :properties
       {"type" {:const "User"}
        "email"
@@ -283,8 +284,8 @@
         :juxt.jinx.alpha/as "password"
         :description "The user's password, stored as a hash at rest, and only
         transmitted in the clear when being set."}
-       #_"userGroups"
-       #_{:type "array"
+       "userGroups"
+       {:type "array"
         :items
         {:type "string"
          :format "uri-reference"

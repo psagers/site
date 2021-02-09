@@ -130,7 +130,11 @@
 
 (defn PUT [request resource selected-representation date crux-node]
   (let [new-representation (receive-representation request resource date)]
+
     (assert new-representation)
+
+    (println "PUT: received this:" )
+    (pprint (update new-representation ::spin/bytes #(String. %)))
 
     ;; TODO: Promote into spin
     (when (get-in request [:headers "content-range"])
