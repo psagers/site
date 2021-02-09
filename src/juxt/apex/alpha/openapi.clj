@@ -205,7 +205,7 @@
     (case (::spin/content-type representation)
       "application/json"
       ;; TODO: Might want to filter out the spin metadata at some point
-      (json/write-value-as-bytes (->query query (extract-params-from-request request param-defs)))
+      (.getBytes (str (json/write-value-as-string resource-state) "\r\n"))
 
       "text/html;charset=utf-8"
       (let [config (get-in resource [:juxt.apex.alpha/operation "responses" "200" "content" (::spin/content-type representation)])
@@ -353,9 +353,6 @@
 
     ;; TODO: Validate new-representation against the JSON schema in the openapi.
 
-    (println "Post validation, before post-processing")
-    (pprint (update new-representation ::spin/bytes #(String. %)))
-
     (when-not (::jinx/valid? validation-results)
       (pprint validation-results)
       (throw
@@ -371,9 +368,6 @@
           instance (::jinx/instance validation)]
 
       (assert (:crux.db/id instance) "The doc must contain an entry for :crux.db/id")
-
-      (println "Instance, ready to submit is:")
-      (pprint instance)
 
       ;; Since this resource is 'managed' by the locate-resource in this ns, we
       ;; don't have to worry about spin attributes - these will be provided by

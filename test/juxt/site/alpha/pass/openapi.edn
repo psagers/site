@@ -55,9 +55,6 @@
 
            "text/csv" {"cols" ["id" "owners"]}}}}}}
 
-  ;; Option 1: Infer from the path - if uri is a crux.db/id, just look it up and return
-  ;; Option 2:
-
   "/user-groups/{id}"
   {
    :get
@@ -120,7 +117,10 @@
     {200
      {:description "Single identified user"
       :content
-      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUser"}}}}}}
+      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUser"}}
+       "text/html;charset=utf-8" {:title "User"
+                                  :schema {"$ref" "#/components/schemas/IdentifiedUser"}
+                                  :template "TODO: We should have add a selmer template!"}}}}}
 
    :put
    {:description "Upserts a user"
@@ -129,6 +129,7 @@
     {:required true
      :content
      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUser"}}}}
+
     :responses
     {200 {:description "User successfully updated"
           :content
