@@ -40,8 +40,8 @@
             {:type "array"
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
 
-           "text/html;charset=utf-8" {"title" "User Groups"
-                                      "type" "table"}
+           "text/html;charset=utf-8" {:title "User Groups"
+                                      :type "table"}
 
            "text/csv" {"cols" ["id" "owners"]}}}}}}
 
@@ -106,6 +106,7 @@
       {"application/json" {:schema {"type" "array"
                                     "items" {"$ref" "#/components/schemas/IdentifiedUser"}}}
        "text/html;charset=utf-8" {:title "User"
+                                  :type "table"
                                   :schema {"$ref" "#/components/schemas/IdentifiedUser"}
                                   :template "TODO: We should have add a selmer template!"}}}}}}
 

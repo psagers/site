@@ -218,67 +218,69 @@
         (.getBytes
 
          ;; We can get config from openapi
-         (hp/html5
-          [:h1 (get config "title" "No title")]
+         (str
+          (hp/html5
+           [:h1 (get config "title" "No title")]
 
-          ;; Get :path-params = {"id" "owners"}
+           ;; Get :path-params = {"id" "owners"}
 
-          (cond
-            (= (get config "type") "table")
-            (if (seq resource-state)
-              (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
-                [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
-                 [:thead
-                  [:tr
-                   (for [field fields]
-                     [:th {:style "border: 1px solid #888; padding: 4pt; text-align: left"} (pr-str field)])]]
-                 [:tbody
-                  (for [row resource-state]
-                    [:tr
-                     (for [field fields
-                           :let [val (get row field)]]
-                       [:td {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
-                        (cond
-                          (uri? val)
-                          [:a {:href val} val]
-                          :else
-                          (pr-str (get row field)))])])]])
-              [:p "No results"])
+           (cond
+             (= (get config "type") "table")
+             (if (seq resource-state)
+               (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
+                 [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
+                  [:thead
+                   [:tr
+                    (for [field fields]
+                      [:th {:style "border: 1px solid #888; padding: 4pt; text-align: left"} (pr-str field)])]]
+                  [:tbody
+                   (for [row resource-state]
+                     [:tr
+                      (for [field fields
+                            :let [val (get row field)]]
+                        [:td {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
+                         (cond
+                           (uri? val)
+                           [:a {:href val} val]
+                           :else
+                           (pr-str (get row field)))])])]])
+               [:p "No results"])
 
-            :else
-            (let [fields (distinct (concat [:crux.db/id] (keys resource-state)))]
-              [:dl
-               (for [field fields
-                     :let [val (get resource-state field)]]
-                 (list
-                  [:dt
-                   (pr-str field)]
-                  [:dd
-                   (cond
-                     (uri? val)
-                     [:a {:href val} val]
-                     :else
-                     (pr-str (get resource-state field)))]))]))
+             :else
+             (let [fields (distinct (concat [:crux.db/id] (keys resource-state)))]
+               [:dl
+                (for [field fields
+                      :let [val (get resource-state field)]]
+                  (list
+                   [:dt
+                    (pr-str field)]
+                   [:dd
+                    (cond
+                      (uri? val)
+                      [:a {:href val} val]
+                      :else
+                      (pr-str (get resource-state field)))]))]))
 
-          [:h2 "Debug"]
-          [:h3 "Resource"]
-          [:pre (with-out-str (pprint resource))]
-          (when query
-            (list
-             [:h3 "Query"]
-             [:pre (with-out-str (pprint query))]))
-          (when crux-query
-            (list
-             [:h3 "Crux Query"]
-             [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]))
+           [:h2 "Debug"]
+           [:h3 "Resource"]
+           [:pre (with-out-str (pprint resource))]
+           (when query
+             (list
+              [:h3 "Query"]
+              [:pre (with-out-str (pprint query))]))
+           (when crux-query
+             (list
+              [:h3 "Crux Query"]
+              [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]))
 
-          (when (seq param-defs)
-            (list
-             [:h3 "Parameters"]
-             [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]))
+           (when (seq param-defs)
+             (list
+              [:h3 "Parameters"]
+              [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]))
 
-          [:h3 "Resource state"]
-          [:pre (with-out-str (pprint resource-state))]))))))
+           [:h3 "Resource state"]
+           [:pre (with-out-str (pprint resource-state))])
+          "\r\n"))))))
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db]
   (.getBytes
