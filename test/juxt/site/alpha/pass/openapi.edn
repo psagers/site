@@ -128,7 +128,15 @@
     :requestBody
     {:required true
      :content
-     {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUser"}}}}
+     {"application/json"
+      {:schema {"$ref" "#/components/schemas/IdentifiedUser"}
+       :example
+       {"type" "User"
+        "name" "John Doe"
+        "email" "john@example.com"
+        "password" "DoReMi123"
+        "userGroups" ["/_crux/pass/user-groups/admins"
+                      "/_crux/pass/user-groups/managers"]}}}}
 
     :responses
     {200 {:description "User successfully updated"

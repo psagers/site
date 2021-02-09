@@ -237,7 +237,7 @@
                           (uri? val)
                           [:a {:href val} val]
                           :else
-                          (get row field))])])]])
+                          (pr-str (get row field)))])])]])
               [:p "No results"])
 
             :else
@@ -253,7 +253,7 @@
                      (uri? val)
                      [:a {:href val} val]
                      :else
-                     (get resource-state field))]))]))
+                     (pr-str (get resource-state field)))]))]))
 
           [:h2 "Debug"]
           [:h3 "Resource"]

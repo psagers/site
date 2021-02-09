@@ -75,6 +75,8 @@ SCHEDULED: <2021-02-05 Fri 16:00>
 
 *** DONE Fix userGroups relation issue
 
+*** DONE Fix text/html issue
+
 *** TODO Show members of usergroups on text/html representation
 
 *** TODO application/json of each endpoint
