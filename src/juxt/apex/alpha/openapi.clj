@@ -125,20 +125,6 @@
 
           paths))))))
 
-
-;;[a]
-;;[a :foo]
-;;[a :foo b]
-
-
-;;[(pred )  ]
-;;[(pred )  foo]
-;;[(pred .. .. ) [foo bar]]
-
-
-#_(let [clause '[a :b c]]
-  (and (vector? clause) (every? (comp not coll?) clause)))
-
 (defn ->query [input params]
   (let [input (postwalk (fn [x]
                       (if (and (map? x)
@@ -166,6 +152,7 @@
 
                 :limit v
                 :in (mapv symbol v)
+                :args [(reduce-kv (fn [acc k v] (assoc acc (keyword k) v)) {} (first v))]
                 )))
      {} input)))
 
@@ -233,23 +220,25 @@
 
           (cond
             (= (get config "type") "table")
-            (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
-              [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
-               [:thead
-                [:tr
-                 (for [field fields]
-                   [:th {:style "border: 1px solid #888; padding: 4pt; text-align: left"} (pr-str field)])]]
-               [:tbody
-                (for [row resource-state]
+            (if (seq resource-state)
+              (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
+                [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
+                 [:thead
                   [:tr
-                   (for [field fields
-                         :let [val (get row field)]]
-                     [:td {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
-                      (cond
-                        (uri? val)
-                        [:a {:href val} val]
-                        :else
-                        (get row field))])])]])
+                   (for [field fields]
+                     [:th {:style "border: 1px solid #888; padding: 4pt; text-align: left"} (pr-str field)])]]
+                 [:tbody
+                  (for [row resource-state]
+                    [:tr
+                     (for [field fields
+                           :let [val (get row field)]]
+                       [:td {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
+                        (cond
+                          (uri? val)
+                          [:a {:href val} val]
+                          :else
+                          (get row field))])])]])
+              [:p "No results"])
 
             :else
             (let [fields (distinct (concat [:crux.db/id] (keys resource-state)))]
@@ -448,3 +437,9 @@
     (swagger-ui)
     ;; This needs an api-console-generator, so not sure it can be uploaded
     (api-console))))
+
+
+
+(jinx.api/validate
+ (jinx.api/schema {"const" "foo"})
+ "fooj")

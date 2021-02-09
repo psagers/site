@@ -38,10 +38,10 @@
       :default 100
       :schema {:type "integer"}}]
     :responses
-    {200 {:crux/query
-          {:find [e]
-           :where [#_[e :owner owner]]
-           :limit {:in "query" :name "limit"}}
+    {200 {:crux/query {:find [e]
+                       :where [[e :type t]]
+                       :args [{t "UserGroup"}]
+                       :limit {:in "query" :name "limit"}}
 
           :content
           {"application/json"
@@ -162,6 +162,16 @@
      {:type "string"
       :minLength 1}}}
 
+   "Typed"
+   {"$id" "/schemas/Typed"
+    :type "object"
+    :required ["type"]
+    :juxt.jinx.alpha/keyword-mappings {"type" "type"}
+    :properties
+    {"type"
+     {:type "string"
+      :minLength 1}}}
+
    "MaybeOwned"
    {"$id" "/schemas/MaybeOwned"
     :type "object"
@@ -232,6 +242,7 @@
     :allOf
     [{"$ref" "#/components/schemas/Named"}
      {"$ref" "#/components/schemas/MaybeOwned"}
+     {"$ref" "#/components/schemas/Typed"}
      {:properties
       {"type" {:const "UserGroup"}
        "description"

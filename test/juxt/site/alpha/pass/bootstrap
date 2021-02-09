@@ -66,33 +66,34 @@
      (url "/_crux/pass/user-groups/owners")
      {:headers {"content-type" "application/json"}
       :body (json/generate-string
-             {:name "Owners"
-              :owner "crux"})
+             {:type "UserGroup"
+              :name "Owners"})
       :throw false
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
 
 (def put-owners-user-group-response2
   (with-status-message
-    "PUT user-group 'owners'"
+    "PUT user-group 'superusers'"
     (curl/put
-     (url "/_crux/pass/user-groups/owners2")
+     (url "/_crux/pass/user-groups/superusers")
      {:headers {"content-type" "application/json"}
       :body (json/generate-string
-             {:name "Owners2"
-              :owner "crux"})
+             {:type "UserGroup"
+              :name "Superusers"})
       :throw false
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
 
 (def put-owners-user-group-response3
   (with-status-message
-    "PUT user-group 'owners'"
+    "PUT user-group 'admins'"
     (curl/put
-     (url "/_crux/pass/user-groups/owners3")
+     (url "/_crux/pass/user-groups/admins")
      {:headers {"content-type" "application/json"}
       :body (json/generate-string
-             {:name "Owners3"})
+             {:type "UserGroup"
+              :name "Administrators"})
       :throw false
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
