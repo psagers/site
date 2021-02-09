@@ -130,9 +130,9 @@
   (let [input (postwalk (fn [x]
                       (if (and (map? x)
                                (contains? x "name")
-                               (= (get x "in") "query")
-                               )
-                        (get-in params [:query (get x "name") :value])
+                               (= (get x "in") "query"))
+                        (get-in params [:query (get x "name") :value]
+                                (get-in params [:query (get x "name") :param "default"]))
                         x)
                           ) input)]
     (reduce
@@ -171,37 +171,61 @@
 
         #_resource-state
         #_(reduce-kv
-         (fn [acc k v]
-           (cond-> acc
-             true #_(not (and (keyword? k)
-                              (some->>
-                               (namespace k)
-                               (re-matches #"juxt\.(reap|spin|site|pick)\..*"))))
-             (assoc k v)))
-         {}
-         resource
-         ;;representation
-         )]
+           (fn [acc k v]
+             (cond-> acc
+               true #_(not (and (keyword? k)
+                                (some->>
+                                 (namespace k)
+                                 (re-matches #"juxt\.(reap|spin|site|pick)\..*"))))
+               (assoc k v)))
+           {}
+           resource
+           ;;representation
+           )]
     ;; TODO: Might want to filter out the spin metadata at some point
     (case (::spin/content-type representation)
       "application/json"
       ;; TODO: Might want to filter out the spin metadata at some point
-      (json/write-value-as-bytes query)
+      (json/write-value-as-bytes (->query query (extract-params-from-request request param-defs)))
 
       "text/html;charset=utf-8"
       (.getBytes
 
+       ;; We can get config from openapi
        (hp/html5
-        [:h1 "Crux entity"]
+        [:h1 (get-in resource [:juxt.apex.alpha/operation "responses" "200" "content" "text/html;charset=utf-8" "title"])]
 
-        [:h2 "Query"]
-        [:pre (with-out-str (pprint query))]
-        [:h2 "Crux Query"]
-        [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]
-        [:h2 "Parameters"]
-        [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]
-        [:h2 "Result"]
-        [:pre (with-out-str (pprint resource-state))])))))
+        (comment
+          [:h2 "Resource"]
+          [:pre (with-out-str (pprint resource))]
+          [:h2 "Query"]
+          [:pre (with-out-str (pprint query))]
+          [:h2 "Crux Query"]
+          [:pre (with-out-str (pprint (->query query (extract-params-from-request request param-defs))))]
+          [:h2 "Parameters"]
+          [:pre (with-out-str (pprint (extract-params-from-request request param-defs)))]
+          [:h2 "Result"]
+          [:pre (with-out-str (pprint resource-state))])
+
+        (let [fields (keys (first resource-state))]
+          [:table {:style "border: 1px solid #888; border-collapse: collapse"}
+           [:tbody
+            (for [row resource-state]
+              [:tr
+               (for [field fields
+                     :let [val (get row field)]]
+                 [:td {:style "border: 1px solid #888"}
+                  (cond
+                    (uri? val)
+                    [:a {:href val} val]
+                    :else
+                    (pr-str (get row field)))]
+                 )
+               ]
+              )
+            ]])
+        )))))
+
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db]
   (.getBytes
@@ -295,17 +319,12 @@
 
       (assert (:crux.db/id instance) "The doc must contain an entry for :crux.db/id")
 
+      ;; Since this resource is 'managed' by the locate-resource in this ns, we
+      ;; don't have to worry about spin attributes - these will be provided by
+      ;; the locate-resource function. We just need the resource state here.
       (crux/submit-tx
        crux-node
-       [[:crux.tx/put
-         (merge
-          instance
-          {::spin/methods #{:get :head :put :options}
-           ::spin/representations
-           [{::spin/content-type "application/json"
-             ::spin/text "TODO: Render Crux entity as JSON"}]
-           ;;::apex/openapi (::apex/openapi resource)
-           })]])
+       [[:crux.tx/put instance]])
 
       (spin/response
        (if old-representation 200 201)

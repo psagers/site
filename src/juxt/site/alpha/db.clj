@@ -20,7 +20,13 @@
     ;; the Crux instance is provisioned.
     (entity/user-entity "crux/admin" "FunkyForest")
     ;; TODO: Policies
-))
+
+    (for [[id state] (map vector (range 1000 (+ 10 1000)) (cycle [:red :green :blue]))]
+      [:crux.tx/put
+       {:crux.db/id id
+        :color state
+        :description "blah blah"}])
+    ))
 
   (crux/sync crux-node))
 

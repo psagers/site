@@ -35,6 +35,7 @@
       :in "query"
       :description "Maximum number of results to return"
       :required false
+      :default 100
       :schema {:type "integer"}}]
     :responses
     {200 {:crux/query
@@ -47,8 +48,10 @@
            {:schema
             {:type "array"
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
-           "text/html;charset=utf-8" {}
-           "text/csv" {}}}}}}
+
+           "text/html;charset=utf-8" {"title" "User Groups" "type" "table"}
+
+           "text/csv" {"cols" ["id" "owners"]}}}}}}
 
   ;; Option 1: Infer from the path - if uri is a crux.db/id, just look it up and return
   ;; Option 2:
