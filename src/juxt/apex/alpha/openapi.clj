@@ -78,16 +78,21 @@
                    (filter #(= (get % "in") "path")))
 
                   pattern
-                  (re-pattern
-                   (str/replace
-                    path
-                    #"\{(\p{Alpha}+)\}"
-                    (fn [[_ group]]
-                      (format "(?<%s>\\w+)" group))))
+                  (str/replace
+                   path
+                   #"\{(\p{Alpha}+)\}"
+                   (fn [[_ group]]
+                     (format "(?<%s>\\w+)" group)))
 
-                  matcher (re-matcher pattern rel-request-path)]
+                  ;; We have to terminate with a 'end of line' otherwise we
+                  ;; match too eagerly. So if we had /users and /users/{id},
+                  ;; then '/users/foo' might match /users.
+                  pattern (str pattern "$")
+
+                  matcher (re-matcher (re-pattern pattern) rel-request-path)]
 
               (when (.find matcher)
+                ;;(prn "REGION" (.regionStart matcher) (.regionEnd matcher))
                 (let [path-params
                       (into
                        {}

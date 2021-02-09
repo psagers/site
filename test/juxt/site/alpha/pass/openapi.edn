@@ -58,7 +58,7 @@
   "/user-groups/{id}"
   {
    :get
-   {:description "Returns a given user-group",
+   {:description "Returns a given user-group"
     ;; NOTE: Path-object level parameters not yet supported!!
     :parameters
     [{:name "id"
@@ -66,7 +66,7 @@
       :description "User-group id"
       :required true
       :schema {:type "string"}}]
-    :operationId "findUserGroupById",
+    :operationId "findUserGroupById"
 
     :responses
     {200
@@ -101,6 +101,24 @@
           :content
           {"text/plain;charset=utf-8" {}}}}}}
 
+  "/users"
+  {:get
+   {:description "Returns a list of all the users you're allowed to view"
+    :operationId "findUsers"
+
+    :responses
+    {200
+     {:crux/query
+      {:find [e]
+       :where [[e :type t]]
+       :args [{t "User"}]}
+      :content
+      {"application/json" {:schema {"type" "array"
+                                    "items" {"$ref" "#/components/schemas/IdentifiedUser"}}}
+       "text/html;charset=utf-8" {:title "User"
+                                  :schema {"$ref" "#/components/schemas/IdentifiedUser"}
+                                  :template "TODO: We should have add a selmer template!"}}}}}}
+
   "/users/{id}"
   {:parameters
    [{:name "id"
@@ -117,10 +135,20 @@
     {200
      {:description "Single identified user"
       :content
-      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUser"}}
-       "text/html;charset=utf-8" {:title "User"
-                                  :schema {"$ref" "#/components/schemas/IdentifiedUser"}
-                                  :template "TODO: We should have add a selmer template!"}}}}}
+      {"application/json"
+       {:schema {"$ref" "#/components/schemas/IdentifiedUser"}
+        :example
+        {"type" "User"
+         "name" "John Doe"
+         "email" "john@example.com"
+         "password" "DoReMi123"
+         "userGroups" ["/_crux/pass/user-groups/admins"
+                       "/_crux/pass/user-groups/managers"]}}
+
+       "text/html;charset=utf-8"
+       {:title "User"
+        :schema {"$ref" "#/components/schemas/IdentifiedUser"}
+        :template "TODO: We should have add a selmer template!"}}}}}
 
    :put
    {:description "Upserts a user"
