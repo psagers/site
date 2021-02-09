@@ -41,7 +41,7 @@
              :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
 
            "text/html;charset=utf-8" {:title "User Groups"
-                                      :type "table"}
+                                      :type "edn-table"}
 
            "text/csv" {"cols" ["id" "owners"]}}}}}}
 
@@ -61,6 +61,15 @@
     :responses
     {200
      {:description "Single identified user-group"
+
+      #_#_:crux/project
+      {:find [ug u]
+       :where [[ug :type ugtype]
+               [u :type utype]
+               [u :user-groups ug]]
+       :args [{ugtype "UserGroup"
+               utype "User"}
+              ]}
 
       :content
       {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUserGroup"}}
@@ -102,13 +111,18 @@
       {:find [e]
        :where [[e :type t]]
        :args [{t "User"}]}
+
       :content
-      {"application/json" {:schema {"type" "array"
-                                    "items" {"$ref" "#/components/schemas/IdentifiedUser"}}}
-       "text/html;charset=utf-8" {:title "User"
-                                  :type "table"
-                                  :schema {"$ref" "#/components/schemas/IdentifiedUser"}
-                                  :template "TODO: We should have add a selmer template!"}}}}}}
+      {"application/json"
+       {:schema {"type" "array"
+                 "items" {"$ref" "#/components/schemas/IdentifiedUser"}}}
+
+       "text/html;charset=utf-8"
+       {:title "Users"
+        :type "edn-table"
+        :schema {"type" "array"
+                 "items" {"$ref" "#/components/schemas/IdentifiedUser"}}
+        :template "TODO: We should have add a selmer template!"}}}}}}
 
   "/users/{id}"
   {:parameters

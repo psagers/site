@@ -1,7 +1,10 @@
 ;; Copyright © 2021, JUXT LTD.
 
+
+
 (ns juxt.apex.alpha.openapi
   (:require
+   [json-html.core :refer [edn->html]]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.walk :refer [postwalk]]
@@ -174,6 +177,11 @@
      :in [$path]}
    path))
 
+(extend-protocol json-html.core/Render
+  java.net.URI
+  (render [u]
+    [:a {:href u} u]))
+
 ;; Possibly promote up into site - by default we output the resource state, but
 ;; there may be a better rendering of collections, which can be inferred from
 ;; the schema being an array and use the items subschema. We can also use the
@@ -225,6 +233,12 @@
            ;; Get :path-params = {"id" "owners"}
 
            (cond
+             (= (get config "type") "edn-table")
+             (list
+              [:style
+               (slurp (io/resource "json.human.css"))]
+              (edn->html resource-state))
+
              (= (get config "type") "table")
              (if (seq resource-state)
                (let [fields (distinct (concat [:crux.db/id] (keys (first resource-state))))]
@@ -446,9 +460,3 @@
     (swagger-ui)
     ;; This needs an api-console-generator, so not sure it can be uploaded
     (api-console))))
-
-
-
-(jinx.api/validate
- (jinx.api/schema {"const" "foo"})
- "fooj")

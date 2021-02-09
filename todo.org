@@ -79,9 +79,9 @@ SCHEDULED: <2021-02-05 Fri 16:00>
 
 *** TODO Show members of usergroups on text/html representation
 
-*** TODO application/json of each endpoint
+*** DONE application/json of each endpoint
 
-*** TODO Asset manager API as part of bootstrap
+*** TODO [#A] Asset manager API as part of bootstrap
 Add in actual assets
 
 *** TODO Security 'pass' authorization tests via bootstrap
@@ -93,7 +93,7 @@ If resource allows PUT, then generate a form
 OR just rely on Swagger
 OR is there something else
 
-*** TODO Add in 'root' UI library as a nice 'default' page
+*** DONE Add in 'root' UI library as a nice 'default' page
 
 *** TODO Upload a Selmer 'template' that can be attached to a resource OR a openapi GET operation (via its config)
 
