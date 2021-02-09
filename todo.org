@@ -68,5 +68,38 @@ Pick has a way to weight preferred responses, we should use it.
 
 ** <2021-02-05 Fri> GOALS
 
-*** TODO PUT user into a Crux with a hashed-password
+*** DONE PUT user into a Crux with a hashed-password
 SCHEDULED: <2021-02-05 Fri 16:00>
+
+** <2021-02-09 Tue> GOALS
+
+*** DONE Fix userGroups relation issue
+
+*** TODO Show members of usergroups on text/html representation
+
+*** TODO application/json of each endpoint
+
+*** TODO Asset manager API as part of bootstrap
+Add in actual assets
+
+*** TODO Security 'pass' authorization tests via bootstrap
+
+*** TODO Stretch: password as an individual document
+
+*** TODO Stretch: forms (from schema)
+If resource allows PUT, then generate a form
+OR just rely on Swagger
+OR is there something else
+
+*** TODO Add in 'root' UI library as a nice 'default' page
+
+*** TODO Upload a Selmer 'template' that can be attached to a resource OR a openapi GET operation (via its config)
+
+*** TODO Trial some application examples
+
+**** TODO Cards - Zettelkasten - post demo with @deo on Friday
+**** TODO Holidays/Timesheets
+**** TODO Kanban-hiring board
+**** TODO Kanban-sales
+**** TODO Kanban-actions
+**** TODO Kanban-resources
