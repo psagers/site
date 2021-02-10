@@ -12,14 +12,14 @@
  :servers [{:url "/_crux/pass"}]
 
  :paths
- {"/user-groups"
+ {"/roles"
   {:options
    {:responses
-    {200 {:description "User groups contain users and a set of roles from which they can choose to assume."}}}
+    {200 {:description "Authorization policies are written in terms of roles. Users are usually assigned a single role but sometimes can have multiple roles."}}}
 
    :get
-   {:description "Returns all user-groups"
-    :operationId "findUserGroups"
+   {:description "Returns all roles"
+    :operationId "findRoles"
     :parameters
     [{:name "limit"
       :in "query"
@@ -31,74 +31,69 @@
     {200 {:crux/query
           {:find [e]
            :where [[e :type t]]
-           :args [{t "UserGroup"}]
+           :args [{t "Role"}]
            :limit {:in "query" :name "limit"}}
 
           :content
           {"application/json"
            {:schema
             {:type "array"
-             :items {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}
+             :items {"$ref" "#/components/schemas/IdentifiedRole"}}}
 
-           "text/html;charset=utf-8" {:title "User Groups"
-                                      :type "edn-table"}
+           "text/html;charset=utf-8" {:title "Roles"
+                                      :type "edn-table"}}}}}}
 
-           "text/csv" {"cols" ["id" "owners"]}}}}}}
-
-  "/user-groups/{id}"
+  "/roles/{id}"
   {
    :get
-   {:description "Returns a given user-group"
+   {:description "Returns a given role"
     ;; NOTE: Path-object level parameters not yet supported!!
     :parameters
     [{:name "id"
       :in "path"
-      :description "User-group id"
+      :description "Role id"
       :required true
       :schema {:type "string"}}]
-    :operationId "findUserGroupById"
+    :operationId "findRoleById"
 
     :responses
     {200
-     {:description "Single identified user-group"
+     {:description "Single identified role"
 
       #_:juxt.site.alpha/state
       #_{:users
-       (crux/q
-        {:find [user email]
-         :where [[(get-attr user :email) email]
-                 [user :type user-type]
-                 [user :user-groups this]]
-         :in [this]
-         :args [{user-type "User"}]})}
+         (crux/q
+          {:find [user email]
+           :where [[(get-attr user :email) email]
+                   [user :type user-type]
+                   [user :roles this]]
+           :in [this]
+           :args [{user-type "User"}]})}
 
       :content
-      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUserGroup"}}
+      {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedRole"}}
 
-       "text/html;charset=utf-8"
-       {:title "User group"
-        :template "<h1>{{this.state.users}}</h1>"}
-       "text/csv" {"cols" ["name" "owner"]}}}}}
+       "text/html;charset=utf-8" {:title "Role"}}}}}
 
    :put
-   {:description "Upserts a user-group"
-    :operationId "putUserGroup"
+   {:description "Upserts a role"
+    :operationId "putRole"
     :parameters
     [{:name "id"
       :in "path"
-      :description "User-group id"
+      :description "Role id"
       :required true
       :schema {:type "string"}}]
     :requestBody
     {:required true
      :content
-     {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedUserGroup"}}}}
+     {"application/json" {:schema {"$ref" "#/components/schemas/IdentifiedRole"}}}}
     :responses
-    {200 {:description "User-group successfully updated"
+    {200 {:description "Role successfully updated"
           :content
           {"text/plain;charset=utf-8" {}}}
 
-     201 {:description "User-group successfully created"
+     201 {:description "Role successfully created"
           :content
           {"text/plain;charset=utf-8" {}}}}}}
 
@@ -123,8 +118,7 @@
        {:title "Users"
         :type "edn-table"
         :schema {"type" "array"
-                 "items" {"$ref" "#/components/schemas/IdentifiedUser"}}
-        :template "TODO: We should have add a selmer template!"}}}}}}
+                 "items" {"$ref" "#/components/schemas/IdentifiedUser"}}}}}}}}
 
   "/users/{id}"
   {:parameters
@@ -149,13 +143,12 @@
          "name" "John Doe"
          "email" "john@example.com"
          "password" "DoReMi123"
-         "userGroups" ["/_crux/pass/user-groups/admins"
-                       "/_crux/pass/user-groups/managers"]}}
+         "roles" ["/_crux/pass/roles/admin"
+                  "/_crux/pass/roles/manager"]}}
 
        "text/html;charset=utf-8"
        {:title "User"
-        :schema {"$ref" "#/components/schemas/IdentifiedUser"}
-        :template "TODO: We should have add a selmer template!"}}}}}
+        :schema {"$ref" "#/components/schemas/IdentifiedUser"}}}}}}
 
    :put
    {:description "Upserts a user"
@@ -170,8 +163,8 @@
         "name" "John Doe"
         "email" "john@example.com"
         "password" "DoReMi123"
-        "userGroups" ["/_crux/pass/user-groups/admins"
-                      "/_crux/pass/user-groups/managers"]}}}}
+        "roles" ["/_crux/pass/roles/admin"
+                 "/_crux/pass/roles/manager"]}}}}
 
     :responses
     {200 {:description "User successfully updated"
@@ -218,79 +211,13 @@
      {:type "string"
       :minLength 1}}}
 
-   "MaybeOwned"
-   {"$id" "/schemas/MaybeOwned"
-    :type "object"
-    :juxt.jinx.alpha/keyword-mappings {"owner" "owner"}
-    :properties
-    {"owner"
-     {:type "string"
-      :format "uri-reference"
-      ;; This hints that the property owner is a reference to a Crux
-      ;; entity
-      :juxt.jinx.alpha/as "uri"
-      }}}
-
-   "Owned"
-   {"$id" "/schemas/Owned"
-    :allOf
-    [{"$ref" "#/components/schemas/MaybeOwned"}
-     {:required ["owner"]}]}
-
-   "Organization"
-   {"$id" "/schemas/Organization"
-    :allOf
-    [{"$ref" "#/components/schemas/Named"}
-     {:type "object"
-      :properties
-      {"address"
-       {:type "string"
-        :minLength 1}}}]}
-
-   "IdentifiedOrganization"
-   {"$id" "/schemas/IdentifiedOrganization"
-    :allOf
-    [{"$ref" "#/components/schemas/Identified"}
-     {"$ref" "#/components/schemas/Organization"}]}
-
    "Role"
    {"$id" "/schemas/Role"
-    :description "Every interaction with a protected part of the system must be
-    taken with a single role. Roles are owned by organisations, and this
-    determines the organisation the interaction is taken on behalf of."
     :allOf
     [{"$ref" "#/components/schemas/Named"}
-     {"$ref" "#/components/schemas/Owned"}]}
-
-   "IdentifiedRole"
-   {"$id" "/schemas/IdentifiedRole"
-    :allOf
-    [{"$ref" "#/components/schemas/Identified"}
-     {"$ref" "#/components/schemas/Role"}]}
-
-   ;;   Rule = target + effect (allow/deny) + condition.
-   ;;   Target = subject + resource + action
-
-   ;; subject = role
-
-   ;; /users - body must be of type 'user'
-
-   ;; Rule = (isInstance(PUT-rep, 'user') + dealership-manager + POST) + allow + (PUT-rep.owner = subject.owner)
-
-
-   ;; POST
-
-   "UserGroup"
-   {"$id" "/schemas/UserGroup"
-    :description "Users are organized into groups. User groups can have multiple
-    roles, users in the user-group assume one of these roles for each
-    interaction with the system."
-    :allOf
-    [{"$ref" "#/components/schemas/Named"}
-     {"$ref" "#/components/schemas/MaybeOwned"}
      {"$ref" "#/components/schemas/Typed"}
      {:properties
-      {"type" {:const "UserGroup"}
+      {"type" {:const "Role"}
        "description"
        {:type "string"}
        "roles"
@@ -301,11 +228,11 @@
          :juxt.jinx.alpha/as "uri"
          }}}}]}
 
-   "IdentifiedUserGroup"
-   {"$id" "/schemas/IdentifiedUserGroup"
+   "IdentifiedRole"
+   {"$id" "/schemas/IdentifiedRole"
     :allOf
     [{"$ref" "#/components/schemas/Identified"}
-     {"$ref" "#/components/schemas/UserGroup"}]}
+     {"$ref" "#/components/schemas/Role"}]}
 
    "User"
    {"$id" "/schemas/User"
@@ -313,22 +240,21 @@
     [{"$ref" "#/components/schemas/Named"}
      {"$ref" "#/components/schemas/Typed"}
      {:type "object"
-      :required ["email" "password" #_"userGroups"]
+      :required ["email" #_"password" "roles"]
       :juxt.jinx.alpha/keyword-mappings {"email" "email"
-                                         "password" "password"
-                                         "userGroups" "user-groups"}
+                                         ;;"password" "password"
+                                         "roles" "roles"}
       :properties
       {"type" {:const "User"}
        "email"
        {:type "string"
         :format "email"}
-       "password"
-       {:type "string"
-        ;;:crux/classification :crux/restricted
+       #_"password"
+       #_{:type "string"
         :juxt.jinx.alpha/as "password"
         :description "The user's password, stored as a hash at rest, and only
         transmitted in the clear when being set."}
-       "userGroups"
+       "roles"
        {:type "array"
         :items
         {:type "string"
@@ -342,21 +268,4 @@
    {"$id" "/schemas/IdentifiedUser"
     :allOf
     [{"$ref" "#/components/schemas/Identified"}
-     {"$ref" "#/components/schemas/User"}]}}
-
-  "Asset"
-  {"$id" "/schemas/Asset"
-   :allOf
-   [{"$ref" "#/components/schemas/Named"}
-    {:type "object"
-     :properties
-     {"location"
-      {:type "string"
-       :minLength 1}}}
-    {"$ref" "#/components/schemas/Owned"}]}
-
-  "IdentifiedAsset"
-  {"$id" "/schemas/IdentifiedAsset"
-   :allOf
-   [{"$ref" "#/components/schemas/Identified"}
-    {"$ref" "#/components/schemas/Asset"}]}}}
+     {"$ref" "#/components/schemas/User"}]}}}}
