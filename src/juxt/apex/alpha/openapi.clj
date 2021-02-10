@@ -1,7 +1,5 @@
 ;; Copyright © 2021, JUXT LTD.
 
-
-
 (ns juxt.apex.alpha.openapi
   (:require
    [json-html.core :refer [edn->html]]
@@ -357,10 +355,7 @@
                                  ::spin/last-modified last-modified}
         schema (get-in resource [::apex/operation "requestBody" "content" "application/json" "schema"])
         _ (assert schema)
-        instance (-> (json/read-value (::spin/bytes new-representation))
-                     ;; If we don't add the id, we'll fail the schema validation
-                     ;; check
-                     (assoc "id" (:uri request)))
+        instance (json/read-value (::spin/bytes new-representation))
         _ (assert instance)
         openapi (:juxt.apex.alpha/openapi resource)
         _ (assert openapi)
@@ -386,16 +381,15 @@
 
 
     (let [validation (-> validation-results process-transformations process-keyword-mappings)
-          instance (::jinx/instance validation)]
-
-      (assert (:crux.db/id instance) "The doc must contain an entry for :crux.db/id")
+          instance (::jinx/instance validation)
+          id (java.net.URI. (:uri request))]
 
       ;; Since this resource is 'managed' by the locate-resource in this ns, we
       ;; don't have to worry about spin attributes - these will be provided by
       ;; the locate-resource function. We just need the resource state here.
       (crux/submit-tx
        crux-node
-       [[:crux.tx/put instance]])
+       [[:crux.tx/put (assoc instance :crux.db/id id)]])
 
       (spin/response
        (if old-representation 200 201)
