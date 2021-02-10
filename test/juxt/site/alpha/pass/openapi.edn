@@ -12,11 +12,7 @@
 
  :paths
  {"/roles"
-  {:options
-   {:responses
-    {200 {:description "Authorization policies are written in terms of roles. Users are usually assigned a single role but sometimes can have multiple roles."}}}
-
-   :get
+  {:get
    {:description "Returns all roles"
     :operationId "findRoles"
     :parameters
@@ -239,19 +235,19 @@
     [{"$ref" "#/components/schemas/Named"}
      {"$ref" "#/components/schemas/Typed"}
      {:type "object"
-      :required ["email" #_"password" "roles"]
+      :required ["email" "password" "roles"]
       :juxt.jinx.alpha/keyword-mappings {"email" "email"
-                                         ;;"password" "password"
+                                         "password" "password"
                                          "roles" "roles"}
       :properties
       {"type" {:const "User"}
        "email"
        {:type "string"
         :format "email"}
-       #_"password"
-       #_{:type "string"
-          :juxt.jinx.alpha/as "password"
-          :description "The user's password, stored as a hash at rest, and only
+       "password"
+       {:type "string"
+        :juxt.jinx.alpha/as "password"
+        :description "The user's password, stored as a hash at rest, and only
         transmitted in the clear when being set."}
        "roles"
        {:type "array"
