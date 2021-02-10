@@ -3,8 +3,7 @@
  {:version "1.0.0"
   :title "Pass API"
   :description
-  "Managing people, permissions and policies with Policy Based Access Control
-  built on Crux's Datalog."
+  "Managing Crux users, roles and policies."
   :contact
   {:name "Malcolm Sparks"
    :email "mal@juxt.pro"
@@ -251,8 +250,8 @@
         :format "email"}
        #_"password"
        #_{:type "string"
-        :juxt.jinx.alpha/as "password"
-        :description "The user's password, stored as a hash at rest, and only
+          :juxt.jinx.alpha/as "password"
+          :description "The user's password, stored as a hash at rest, and only
         transmitted in the clear when being set."}
        "roles"
        {:type "array"

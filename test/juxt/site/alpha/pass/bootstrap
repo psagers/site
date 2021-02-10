@@ -56,23 +56,23 @@
 (assert (= 200 (:status get-openapi-json-response)))
 (:body get-openapi-json-response)
 
-;; Now we are ready to PUT a user-group that will the owners of this Crux Site
+;; Now we are ready to PUT a role that will the owners of this Crux Site
 ;; instance will belong to.
 
 ;; TODO: Do a loop
 
 (doseq [{:keys [id name]}
-        [{:id "owners" :name "Owners"}
-         {:id "superusers" :name "Superusers"}
-         {:id "admins" :name "Administrators"}]]
+        [{:id "owner" :name "Owners"}
+         {:id "superuser" :name "Superusers"}
+         {:id "admin" :name "Administrators"}]]
   (let [response
         (with-status-message
-          (format "PUT user-group '%s'" id)
+          (format "PUT role '%s'" id)
           (curl/put
-           (url (format "/_crux/pass/user-groups/%s" id))
+           (url (format "/_crux/pass/roles/%s" id))
            {:headers {"content-type" "application/json"}
             :body (json/generate-string
-                   {:type "UserGroup"
+                   {:type "Role"
                     :name name})
             :throw false
             :basic-auth CRUX_ADMIN
@@ -81,9 +81,9 @@
 
 (def get-user-groups-response
   (with-status-message
-    "GET user-groups"
+    "GET roles"
     (curl/get
-     (url "/_crux/pass/user-groups")
+     (url "/_crux/pass/roles")
      {:headers {"accept" "application/json"}
       :throw true
       :basic-auth CRUX_ADMIN
@@ -94,106 +94,15 @@
 
 (def get-user-group-response
   (with-status-message
-    "GET example user-group"
+    "GET example role"
     (curl/get
-     (url "/_crux/pass/user-groups/owners")
+     (url "/_crux/pass/roles/owners")
      {:headers {"accept" "application/json"}
       :throw true
       :basic-auth CRUX_ADMIN
       :debug CURL_DEBUG})))
 
 (assert (= 200 (:status get-user-group-response)))
-
-(doseq [{:keys [id name email password groups]}
-        [{:id "juxtjdt"
-          :name "Jeremy Taylor"
-          :email "jdt@juxt.pro"
-          :password "BlueCheese"
-          :groups ["/_crux/pass/user-groups/superusers"
-                   "/_crux/pass/user-groups/owners"
-                   "/_crux/pass/user-groups/admins"]}
-
-         {:id "juxtmal"
-          :name "Malcolm Sparks"
-          :email "mal@juxt.pro"
-          :password "HarryFord1782"
-          :groups ["/_crux/pass/user-groups/superusers"
-                   "/_crux/pass/user-groups/owners"]}
-
-         {:id "juxttim"
-          :name "Tim Greene"
-          :email "tim@juxt.pro"
-          :password "BristolRoversAreTheBest"
-          :groups ["/_crux/pass/user-groups/admins"]}]]
-
-  (let [response
-        (with-status-message
-          (format "PUT user '%s'" id)
-          (curl/put
-           (url (format "/_crux/pass/users/%s" id))
-           {:headers {"content-type" "application/json"}
-            :body (json/generate-string
-                   {"type" "User"
-                    "email" email
-                    "name" name
-                    "password" password
-                    "userGroups" groups})
-            :throw false
-            :basic-auth CRUX_ADMIN
-            :debug CURL_DEBUG}))]
-    (assert (#{200 201} (:status response)))))
-
-#_(def get-owners-user-group-response
-  (with-status-message
-    "GET user-group 'owners'"
-    (curl/get
-     (url "/_crux/pass/user-groups/owners")
-     {:headers {"accept" "application/json"}
-      :throw true
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
-
-#_(assert (= 200 (:status get-owners-user-group-response)))
-#_(:body get-owners-user-group-response)
-
-#_(def put-owner-response
-  (with-status-message
-    "PUT user 'juxtmal'"
-    (curl/put
-     (url "/_crux/pass/users/juxtmal")
-     {:headers {"content-type" "application/json"}
-      :body (json/generate-string
-             {"username" "juxtmal"
-              "email" "mal@juxt.pro"
-              "password" "FoolishTiger"
-              "userGroup" "/_crux/pass/user-groups/owners"})
-      :throw false
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
-
-;;(assert (#{200 201} (:status put-owner-response)))
-
-#_(:body put-owner-response)
-
-#_(def get-owner-response
-  (with-status-message
-    "GET user 'juxtmal'"
-    (curl/get
-     (url "/_crux/pass/users/juxtmal")
-     {:headers {"accept" "application/json"}
-      :throw true
-      :basic-auth CRUX_ADMIN
-      :debug CURL_DEBUG})))
-
-#_(assert (= 200 (:status get-owner-response)))
-
-#_(println "User representation")
-#_(pprint (json/parse-string (:body get-owner-response)))
-
-;; Finish now with crux/admin, start using juxtmal
-
-
-
 
 ;; Local Variables:
 ;; mode: clojure
