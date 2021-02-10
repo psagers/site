@@ -3,7 +3,7 @@
  {:version "1.0.0"
   :title "Pass API"
   :description
-  "Managing Crux users, roles and policies."
+  "Managing Crux users, roles, orgs and policies."
   :contact
   {:name "Malcolm Sparks"
    :email "mal@juxt.pro"
@@ -168,6 +168,57 @@
 
      201 {:description "User successfully created"
           :content
+          {"text/plain;charset=utf-8" {}}}}}}
+
+  "/orgs"
+  {:get
+   {:responses
+    {200 {:crux/query
+          {:find [e]
+           :where [[e :type t]]
+           :args [{t "Organization"}]}
+
+          :content
+          {"application/json"
+           {:schema
+            {:type "array"
+             :items {"$ref" "#/components/schemas/IdentifiedOrganization"}}}
+
+           "text/html;charset=utf-8" {:title "User Groups"
+                                      :type "edn-table"}}}}}}
+
+  "/orgs/{id}"
+  {:get
+   {:parameters
+    [{:name "id"
+      :in "path"
+      :required true
+      :schema {:type "string"}}]
+
+    :responses
+    {200
+     {:content
+      {"application/json" {:schema {"$ref" "#/components/schemas/Organization"}}
+       "text/html;charset=utf-8" {:title "Organization"}}}}}
+
+   :put
+   {:parameters
+    [{:name "id"
+      :in "path"
+      :description "Role id"
+      :required true
+      :schema {:type "string"}}]
+    :requestBody
+    {:required true
+     :content
+     {"application/json" {:schema {"$ref" "#/components/schemas/Organization"}}}}
+    :responses
+    {200 {:description "Organization successfully updated"
+          :content
+          {"text/plain;charset=utf-8" {}}}
+
+     201 {:description "Organization successfully created"
+          :content
           {"text/plain;charset=utf-8" {}}}}}}}
 
  :components
@@ -255,11 +306,35 @@
         {:type "string"
          :format "uri-reference"
          :juxt.jinx.alpha/as "uri"
-         :crux/reference? true
-         }}}}]}
+         :crux/reference? true}}
+       "org" {:type "string"
+              :format "uri-reference"
+              :juxt.jinx.alpha/as "uri"}}}]}
 
    "IdentifiedUser"
    {"$id" "/schemas/IdentifiedUser"
     :allOf
     [{"$ref" "#/components/schemas/Identified"}
-     {"$ref" "#/components/schemas/User"}]}}}}
+     {"$ref" "#/components/schemas/User"}]}
+
+   ;; Organizations are optional. Users can belong to organizations, which can
+   ;; sometimes help policies that need to segregate.
+
+   "Organization"
+   {"$id" "/schemas/Organization"
+    :allOf
+    [{"$ref" "#/components/schemas/Named"}
+     {"$ref" "#/components/schemas/Typed"}
+     {:type "object"
+      :juxt.jinx.alpha/keyword-mappings {"address" "address"}
+      :properties
+      {"type" {:const "Organization"}
+       "address"
+       {:type "string"
+        :minLength 1}}}]}
+
+   "IdentifiedOrganization"
+   {"$id" "/schemas/IdentifiedOrganization"
+    :allOf
+    [{"$ref" "#/components/schemas/Identified"}
+     {"$ref" "#/components/schemas/Organization"}]}}}}
