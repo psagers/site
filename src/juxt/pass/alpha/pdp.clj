@@ -6,7 +6,6 @@
    [clojure.walk :refer [postwalk-replace]]
    [crux.api :as crux]
    [juxt.pass.alpha :as pass]
-   [juxt.site.alpha :as site]
    [juxt.spin.alpha :as spin]
    [juxt.spin.alpha.auth :as spin.auth]))
 
@@ -91,15 +90,20 @@
 (defn authorize
   "Return the resource, as it appears to the request after authorization rules
   have been applied."
-  [request resource]
+  [request resource db]
 
   (when resource
     (cond
+
+      ;; Give the crux admin god-like power
+      (= (::pass/username request) "crux/admin")
+      resource
+
       (and
        (.startsWith (:uri request) "/_crux/")
-       (not= (::site/username request) "crux/admin"))
+       (not= (::pass/username request) "crux/admin"))
       (throw
-       (if (::site/username request)
+       (if (::pass/username request)
          (ex-info
           "Forbidden"
           {::spin/response
@@ -117,6 +121,29 @@
                 ::spin/realm "Crux Administration"}])}
             :body "Unauthorized\r\n"}})))
 
-
       :else
-      resource)))
+      (let [request-context {:request (dissoc request :body)
+                             :resource resource}
+            authorization (authorization db request-context)]
+
+        (if-not (= (::pass/access authorization) ::pass/approved)
+          (throw
+           (if (::pass/username request)
+             (ex-info
+              "Forbidden"
+              {::spin/response
+               {:status 403
+                :body "Forbidden\r\n"}})
+
+             (ex-info
+              "Unauthorized"
+              {::spin/response
+               {:status 401
+                :headers
+                {"www-authenticate"
+                 (spin.auth/www-authenticate
+                  [{::spin/authentication-scheme "Basic"
+                    ::spin/realm "Users"}])}
+                :body "Unauthorized\r\n"}})))
+
+          resource)))))

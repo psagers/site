@@ -237,7 +237,7 @@
      {:type "object"
       :required ["email" "password" "roles"]
       :juxt.jinx.alpha/keyword-mappings {"email" "email"
-                                         "password" "password"
+                                         "password" "juxt.pass.alpha/password-hash!!"
                                          "roles" "roles"}
       :properties
       {"type" {:const "User"}

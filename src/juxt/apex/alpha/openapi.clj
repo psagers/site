@@ -295,24 +295,52 @@
           "\r\n"))))))
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db]
-  (.getBytes
-   (.toString
-    (doto (StringBuilder.)
-      (.append "<h1>API Console</h1>\r\n")
-      (.append "<ul>")
-      (.append
-       (apply str
-              (for [[uri openapi]
-                    (crux/q db '{:find [e openapi]
-                                 :where [[e ::apex/openapi openapi]]})]
-                (str
-                 "<li>" (get-in openapi ["info" "title"])
-                 "&nbsp<small>[&nbsp;"
-                 (format "<a href='/_crux/swagger-ui/index.html?url=%s'>" uri)
-                 "Swagger UI"
-                 "&nbsp;]</small>"
-                 "</a></li>"))))
-      (.append "</ul>")))))
+  (let [cell-attrs {:style "border: 1px solid #888; padding: 4pt; text-align: left"}]
+    (.getBytes
+     (str
+      (hp/html5
+       [:h1 "Site APIs"]
+       [:p "These APIs are loaded and available"]
+       [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
+        [:thead
+         [:tr
+          (for [field ["Path" "Title" "Contact" "Swagger UI"]]
+            [:th cell-attrs field])]]
+        [:tbody
+         (for [[uri openapi]
+               (crux/q db '{:find [e openapi]
+                            :where [[e ::apex/openapi openapi]]})]
+           [:tr
+            [:td cell-attrs
+             (get-in openapi ["servers" 0 "url"])]
+
+            [:td cell-attrs
+             (get-in openapi ["info" "title"])]
+
+            [:td cell-attrs
+             (get-in openapi ["info" "contact" "name"])]
+
+            [:td cell-attrs
+             [:a {:href (format "/_crux/swagger-ui/index.html?url=%s" uri)} uri]]])]])
+
+      "\r\n")
+     #_(.toString
+        (doto (StringBuilder.)
+          (.append "<h1>Site APIs</h1>\r\n")
+          (.append "<ul>")
+          (.append
+           (apply str
+                  (for [[uri openapi]
+                        (crux/q db '{:find [e openapi]
+                                     :where [[e ::apex/openapi openapi]]})]
+                    (str
+                     "<li>" (get-in openapi ["info" "title"])
+                     "&nbsp<small>[&nbsp;"
+                     (format "<a href='/_crux/swagger-ui/index.html?url=%s'>" uri)
+                     "Swagger UI"
+                     "&nbsp;]</small>"
+                     "</a></li>"))))
+          (.append "</ul>"))))))
 
 
 (defmethod put-representation

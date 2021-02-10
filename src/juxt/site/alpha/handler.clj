@@ -2,21 +2,22 @@
 
 (ns juxt.site.alpha.handler
   (:require
-   [crypto.password.bcrypt :as password]
+   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
-   [clojure.pprint :refer [pprint]]
    [crux.api :as crux]
-   [juxt.pick.alpha.ring :refer [pick]]
+   [crypto.password.bcrypt :as password]
    [juxt.apex.alpha.openapi :as openapi]
    [juxt.jinx.alpha.vocabularies.transformation :refer [transform-value]]
+   [juxt.pass.alpha :as pass]
+   [juxt.pass.alpha.pdp :as pdp]
+   [juxt.pick.alpha.ring :refer [pick]]
    [juxt.site.alpha :as site]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
    [juxt.site.alpha.put :refer [put-representation]]
    [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :refer [assoc-when-some]]
    [juxt.spin.alpha :as spin]
-   [juxt.pass.alpha.pdp :as pdp]
    [juxt.spin.alpha.auth :as spin.auth]
    [juxt.spin.alpha.representation :as spin.representation]))
 
@@ -165,11 +166,11 @@
   (let [{::spin.auth/keys [user password]}
         (spin.auth/decode-authorization-header request)]
     (or
-     (when-let [e (crux/entity db (java.net.URI. (format "/_crux/users/%s" user)))]
-       (when (password/check password (::site/password-hash!! e))
+     (when-let [e (crux/entity db (java.net.URI. (format "/_crux/pass/users/%s" user)))]
+       (when (password/check password (::pass/password-hash!! e))
          (->
-          (merge request e)
-          (dissoc ::site/password-hash!!))))
+          (merge request e {::pass/username user})
+          (dissoc ::pass/password-hash!!))))
 
      ;; Default
      request)))
@@ -181,7 +182,7 @@
       (let [resource (locate-resource request db)
 
             request (authenticate request resource db)
-            resource (pdp/authorize request resource)
+            resource (pdp/authorize request resource db)
 
             _ (spin/check-method-not-allowed! request resource)
 
