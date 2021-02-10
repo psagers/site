@@ -5,6 +5,7 @@
    [clojure.java.io :as io]
    [crux.api :as crux]
    [integrant.core :as ig]
+   [juxt.pass.alpha :as pass]
    [juxt.spin.alpha :as spin]
    [juxt.site.alpha.entity :as entity]
    [juxt.site.alpha.util :as util])
@@ -20,6 +21,32 @@
     ;; the Crux instance is provisioned.
     (entity/user-entity "crux/admin" "FunkyForest")
     ;; TODO: Policies
+
+    [
+     [:crux.tx/put
+      {:crux.db/id :rule2
+
+       ::pass/description
+       "Paul can do anything :)"
+
+       ;; used to match the rule against the target
+       ::pass/target
+       '[
+         [(get-attr context :request) request]
+         [(get request ::pass/user) user]
+         [(get user ::pass/username) username]
+         [(= username "rlwspaul")]
+         ]
+
+       ::pass/effect ::pass/allow
+
+       ;; the effect of the rule 'going forward'
+       ::pass/limiting-clauses
+       '[(or
+          [e :dealership dealership]
+          [e :owner dealership])
+         [(get context ::pass/role) role]
+         [role :owner dealership]]}]]
 
     ))
 

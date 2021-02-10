@@ -168,8 +168,9 @@
     (or
      (when-let [e (crux/entity db (java.net.URI. (format "/_crux/pass/users/%s" user)))]
        (when (password/check password (::pass/password-hash!! e))
+         ;; TODO: This might be where we also add the 'on-behalf-of' info
          (->
-          (merge request e {::pass/username user})
+          (assoc request ::pass/user (assoc e ::pass/username user))
           (dissoc ::pass/password-hash!!))))
 
      ;; Default

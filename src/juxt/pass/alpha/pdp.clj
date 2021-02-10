@@ -4,6 +4,7 @@
   (:require
    [clojure.set :as set]
    [clojure.walk :refer [postwalk-replace]]
+   [clojure.tools.logging :as log]
    [crux.api :as crux]
    [juxt.pass.alpha :as pass]
    [juxt.spin.alpha :as spin]
@@ -20,9 +21,13 @@
         rules (crux/q db '{:find [rule (distinct target-clauses)]
                            :where [[rule ::pass/target target-clauses]]})
 
+        _  (log/debugf "Rules to match are %s" (pr-str rules))
         context-id (java.util.UUID/randomUUID)
+        _ (log/debugf "Submitting context to db: %s" context)
+
         db (crux/with-tx db
-             [[:crux.tx/put (assoc context :crux.db/id context-id)]])]
+             [[:crux.tx/put (assoc context :crux.db/id context-id)]
+              ])]
 
     ;; Map across each rule in the system (we can memoize later for
     ;; performance).
@@ -33,7 +38,11 @@
           rule-ent
           ::pass/matched?
           (contains?
-           (set (map first (crux/q db {:find ['context] :where (vec target-clauses)})))
+           (set (map first (crux/q db {:find ['context]
+                                       :where (into [['context :crux.db/id 'context-id]]
+                                                    target-clauses)
+                                       :in ['context-id]}
+                                   context-id)))
            context-id))))
      rules)))
 
@@ -45,30 +54,33 @@
         ;; This is all the attributes that pertain to the subject, resource,
         ;; action, environment and maybe more.
 
-        matched (->> (request-decision db context)
-                     (filter ::pass/matched?))
+        decision (request-decision db context)
+
+        _ (log/debugf "Decision: %s" (pr-str decision))
+
+        matched-rules (filter ::pass/matched? decision)
 
         allowed? (and
-                  (pos? (count matched))
+                  (pos? (count matched-rules))
                   ;; Rule combination algorithm is every?
-                  (every? #(= (::pass/effect %) ::pass/allow) matched))]
+                  (every? #(= (::pass/effect %) ::pass/allow) matched-rules))]
 
     (if-not allowed?
       #::pass
       {:access ::pass/denied
-       :matched-rules matched}
+       :matched-rules matched-rules}
 
       #::pass
       {:access ::pass/approved
-       :matched-rules matched
+       :matched-rules matched-rules
        :limiting-clauses
        ;; Get all the query limits added by these rules
-       (->> matched
+       (->> matched-rules
             (filter #(= (::pass/effect %) ::pass/allow))
             (map ::pass/limiting-clauses)
             (apply concat))
        :allow-methods
-       (->> matched
+       (->> matched-rules
             (filter #(= (::pass/effect %) ::pass/allow))
             (map ::pass/allow-methods)
             (apply set/union))})))
@@ -92,58 +104,61 @@
   have been applied."
   [request resource db]
 
-  (when resource
-    (cond
+  (let [username (get-in request [::pass/user ::pass/username])]
+    (when resource
+      (cond
 
-      ;; Give the crux admin god-like power
-      (= (::pass/username request) "crux/admin")
-      resource
+        ;; Give the crux admin god-like power
+        (= username "crux/admin")
+        resource
 
-      (and
-       (.startsWith (:uri request) "/_crux/")
-       (not= (::pass/username request) "crux/admin"))
-      (throw
-       (if (::pass/username request)
-         (ex-info
-          "Forbidden"
-          {::spin/response
-           {:status 403
-            :body "Forbidden\r\n"}})
+        (and
+         (.startsWith (:uri request) "/_crux/")
+         (not= username "crux/admin"))
+        (throw
+         (if username
+           (ex-info
+            "Forbidden"
+            {::spin/response
+             {:status 403
+              :body "Forbidden\r\n"}})
 
-         (ex-info
-          "Unauthorized"
-          {::spin/response
-           {:status 401
-            :headers
-            {"www-authenticate"
-             (spin.auth/www-authenticate
-              [{::spin/authentication-scheme "Basic"
-                ::spin/realm "Crux Administration"}])}
-            :body "Unauthorized\r\n"}})))
+           (ex-info
+            "Unauthorized"
+            {::spin/response
+             {:status 401
+              :headers
+              {"www-authenticate"
+               (spin.auth/www-authenticate
+                [{::spin/authentication-scheme "Basic"
+                  ::spin/realm "Crux Administration"}])}
+              :body "Unauthorized\r\n"}})))
 
-      :else
-      (let [request-context {:request (dissoc request :body)
-                             :resource resource}
-            authorization (authorization db request-context)]
+        :else
+        (let [request-context {:request (dissoc request :body)
+                               :resource resource}
+              authorization (authorization db request-context)]
 
-        (if-not (= (::pass/access authorization) ::pass/approved)
-          (throw
-           (if (::pass/username request)
-             (ex-info
-              "Forbidden"
-              {::spin/response
-               {:status 403
-                :body "Forbidden\r\n"}})
+          (prn authorization)
 
-             (ex-info
-              "Unauthorized"
-              {::spin/response
-               {:status 401
-                :headers
-                {"www-authenticate"
-                 (spin.auth/www-authenticate
-                  [{::spin/authentication-scheme "Basic"
-                    ::spin/realm "Users"}])}
-                :body "Unauthorized\r\n"}})))
+          (if-not (= (::pass/access authorization) ::pass/approved)
+            (throw
+             (if username
+               (ex-info
+                "Forbidden"
+                {::spin/response
+                 {:status 403
+                  :body "Forbidden\r\n"}})
 
-          resource)))))
+               (ex-info
+                "Unauthorized"
+                {::spin/response
+                 {:status 401
+                  :headers
+                  {"www-authenticate"
+                   (spin.auth/www-authenticate
+                    [{::spin/authentication-scheme "Basic"
+                      ::spin/realm "Users"}])}
+                  :body "Unauthorized\r\n"}})))
+
+            resource))))))
