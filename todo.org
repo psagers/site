@@ -51,7 +51,6 @@ Policies can match targets
 
 *** TODO Crux 'owner' group
 
-
 ** Snaglist
 
 *** TODO Why does the first PUT of /user-groups/{id} get a Vary header?
@@ -64,44 +63,3 @@ Multiple ways of handling application/json
 *** TODO Why does this not return json by default?
 curl -i localhost:8082/_crux/users/crux/admin -K cruxadmin
 Pick has a way to weight preferred responses, we should use it.
-
-
-** <2021-02-05 Fri> GOALS
-
-*** DONE PUT user into a Crux with a hashed-password
-SCHEDULED: <2021-02-05 Fri 16:00>
-
-** <2021-02-09 Tue> GOALS
-
-*** DONE Fix userGroups relation issue
-
-*** DONE Fix text/html issue
-
-*** TODO Show members of usergroups on text/html representation
-
-*** DONE application/json of each endpoint
-
-*** TODO [#A] Asset manager API as part of bootstrap
-Add in actual assets
-
-*** TODO Security 'pass' authorization tests via bootstrap
-
-*** TODO Stretch: password as an individual document
-
-*** TODO Stretch: forms (from schema)
-If resource allows PUT, then generate a form
-OR just rely on Swagger
-OR is there something else
-
-*** DONE Add in 'root' UI library as a nice 'default' page
-
-*** TODO Upload a Selmer 'template' that can be attached to a resource OR a openapi GET operation (via its config)
-
-*** TODO Trial some application examples
-
-**** TODO Cards - Zettelkasten - post demo with @deo on Friday
-**** TODO Holidays/Timesheets
-**** TODO Kanban-hiring board
-**** TODO Kanban-sales
-**** TODO Kanban-actions
-**** TODO Kanban-resources
