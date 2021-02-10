@@ -256,7 +256,6 @@
          :format "uri-reference"
          :juxt.jinx.alpha/as "uri"
          :crux/reference? true
-         ;;:crux.json-schema/schema-of-target "/schemas/IdentifiedUserGroup"
          }}}}]}
 
    "IdentifiedUser"

@@ -83,7 +83,7 @@
                    path
                    #"\{(\p{Alpha}+)\}"
                    (fn [[_ group]]
-                     (format "(?<%s>\\w+)" group)))
+                     (format "(?<%s>[\\p{Alnum}-_]+)" group)))
 
                   ;; We have to terminate with a 'end of line' otherwise we
                   ;; match too eagerly. So if we had /users and /users/{id},
