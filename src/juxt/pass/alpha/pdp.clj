@@ -5,7 +5,10 @@
    [clojure.set :as set]
    [clojure.walk :refer [postwalk-replace]]
    [crux.api :as crux]
-   [juxt.pass.alpha :as pass]))
+   [juxt.pass.alpha :as pass]
+   [juxt.site.alpha :as site]
+   [juxt.spin.alpha :as spin]
+   [juxt.spin.alpha.auth :as spin.auth]))
 
 ;; PDP (Policy Decision Point)
 
@@ -71,7 +74,7 @@
             (map ::pass/allow-methods)
             (apply set/union))})))
 
-(defn authorize-query [query authorization]
+(defn ->authorized-query [query authorization]
   ;; Ensure they apply to ALL entities queried by a given Datalog
   ;; query. We duplicate each set of limiting clauses. For each copy,
   ;; we replace 'e (which, by convention, is what we use in a limiting
@@ -83,3 +86,37 @@
       (-> query
           (assoc :in '[context])
           (update :where (comp vec concat) combined-limiting-clauses)))))
+
+
+(defn authorize
+  "Return the resource, as it appears to the request after authorization rules
+  have been applied."
+  [request resource]
+
+  (when resource
+    (cond
+      (and
+       (.startsWith (:uri request) "/_crux/")
+       (not= (::site/username request) "crux/admin"))
+      (throw
+       (if (::site/username request)
+         (ex-info
+          "Forbidden"
+          {::spin/response
+           {:status 403
+            :body "Forbidden\r\n"}})
+
+         (ex-info
+          "Unauthorized"
+          {::spin/response
+           {:status 401
+            :headers
+            {"www-authenticate"
+             (spin.auth/www-authenticate
+              [{::spin/authentication-scheme "Basic"
+                ::spin/realm "Crux Administration"}])}
+            :body "Unauthorized\r\n"}})))
+
+
+      :else
+      resource)))

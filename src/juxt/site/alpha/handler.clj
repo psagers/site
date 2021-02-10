@@ -16,6 +16,7 @@
    [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :refer [assoc-when-some]]
    [juxt.spin.alpha :as spin]
+   [juxt.pass.alpha.pdp :as pdp]
    [juxt.spin.alpha.auth :as spin.auth]
    [juxt.spin.alpha.representation :as spin.representation]))
 
@@ -165,37 +166,13 @@
         (spin.auth/decode-authorization-header request)]
     (or
      (when-let [e (crux/entity db (java.net.URI. (format "/_crux/users/%s" user)))]
-       (when (password/check password (:crux.site/password-hash!! e))
+       (when (password/check password (::site/password-hash!! e))
          (->
           (merge request e)
-          (dissoc :crux.site/password-hash!!))))
+          (dissoc ::site/password-hash!!))))
 
      ;; Default
      request)))
-
-(defn authorize
-  "Return the resource, as it appears to the request after authorization rules
-  have been applied."
-  [request resource]
-
-  (when resource
-    (cond
-      (and
-       (.startsWith (:uri request) "/_crux/")
-       (not= (:crux.site/username request) "crux/admin"))
-      (throw
-       (ex-info
-        "Authentication failed"
-        {::spin/response
-         {:status 401
-          :headers
-          {"www-authenticate"
-           (spin.auth/www-authenticate
-            [{::spin/authentication-scheme "Basic"
-              ::spin/realm "Crux Administration"}])}
-          :body "Unauthorized\r\n"}}))
-
-      :else resource)))
 
 (defn make-handler [crux-node]
   (fn [request]
@@ -204,7 +181,7 @@
       (let [resource (locate-resource request db)
 
             request (authenticate request resource db)
-            resource (authorize request resource)
+            resource (pdp/authorize request resource)
 
             _ (spin/check-method-not-allowed! request resource)
 

@@ -154,7 +154,7 @@
           (fn [role]
             (let [request-context {::pass/role role}
                   authorization (pdp/authorization db request-context)
-                  query (pdp/authorize-query query authorization)]
+                  query (pdp/->authorized-query query authorization)]
               (crux/q db query request-context)))]
 
       (is
@@ -204,7 +204,7 @@
         authorization
         (pdp/authorization db request-context)
 
-        authorized-query (pdp/authorize-query query authorization)]
+        authorized-query (pdp/->authorized-query query authorization)]
 
     authorization
 
