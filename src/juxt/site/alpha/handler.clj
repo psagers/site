@@ -172,9 +172,7 @@
        (when (password/check password (::pass/password-hash!! e))
          ;; TODO: This might be where we also add the 'on-behalf-of' info
          (-> request
-          ;; The password hash has now been used, let's discard it
-          (dissoc ::pass/password-hash!!)
-          (assoc ::pass/user uid ::pass/username user))))
+             (assoc ::pass/user uid ::pass/username user))))
 
      ;; Default
      request)))
