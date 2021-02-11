@@ -3,7 +3,7 @@
  {:version "1.0.0"
   :title "Pass API"
   :description
-  "Managing Crux users, roles, orgs and policies."
+  "Managing Crux users, roles, and policies."
   :contact
   {:name "Malcolm Sparks"
    :email "mal@juxt.pro"
@@ -168,6 +168,68 @@
 
      201 {:description "User successfully created"
           :content
+          {"text/plain;charset=utf-8" {}}}}}}
+
+
+  "/rules"
+  {:get
+   {:description "Returns a list of all the rule"
+
+    :responses
+    {200
+     {:crux/query
+      {:find [e]
+       :where [[e :type t]]
+       :args [{t "Rule"}]}
+
+      :content
+      {"application/json"
+       {:schema {"type" "array"
+                 "items" {"$ref" "#/components/schemas/IdentifiedRule"}}}
+
+       "text/html;charset=utf-8"
+       {:title "Rules"
+        :type "edn-table"
+        :schema {"type" "array"
+                 "items" {"$ref" "#/components/schemas/IdentifiedRule"}}}}}}}}
+
+  "/rules/{id}"
+  {:parameters
+   [{:name "id"
+     :in "path"
+     :description "Rule id"
+     :required true
+     :schema {:type "string"}}]
+
+   :get
+   {:description "Returns a given rule",
+
+    :responses
+    {200
+     {:description "Single identified rule"
+      :content
+      {"application/json"
+       {:schema {"$ref" "#/components/schemas/Rule"}}
+
+       "text/html;charset=utf-8"
+       {:title "Rule"
+        :schema {"$ref" "#/components/schemas/Rule"}}}}}}
+
+   :put
+   {:description "Upserts a rule"
+    :requestBody
+    {:required true
+     :content
+     {"application/json"
+      {:schema {"$ref" "#/components/schemas/Rule"}}}}
+
+    :responses
+    {200 {:description "Rule successfully updated"
+          :content
+          {"text/plain;charset=utf-8" {}}}
+
+     201 {:description "Rule successfully created"
+          :content
           {"text/plain;charset=utf-8" {}}}}}}}
 
  :components
@@ -265,5 +327,26 @@
     :allOf
     [{"$ref" "#/components/schemas/Identified"}
      {"$ref" "#/components/schemas/User"}]}
+
+   "Rule"
+   {"$id" "/schemas/Rule"
+    :allOf
+    [{"$ref" "#/components/schemas/Typed"}
+     {:type "object"
+      :required ["target" "effect"]
+      :juxt.jinx.alpha/keyword-mappings {"description" "juxt.pass.alpha/description"
+                                         "target" "juxt.pass.alpha/target"
+                                         "effect" "juxt.pass.alpha/effect"}
+      :properties
+      {"type" {:const "Rule"}
+       "description" {:type "string"}
+       "target" {:type "string" :juxt.jinx.alpha/as "edn"}
+       "effect" {:type "string" :juxt.jinx.alpha/as "keyword"}}}]}
+
+   "IdentifiedRule"
+   {"$id" "/schemas/IdentifiedRule"
+    :allOf
+    [{"$ref" "#/components/schemas/Identified"}
+     {"$ref" "#/components/schemas/Rule"}]}
 
    }}}

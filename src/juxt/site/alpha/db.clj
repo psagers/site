@@ -66,7 +66,7 @@
            [role :owner dealership]]}]
 
      ;; Ken shouldn't be able to see the RLWS org
-     [:crux.tx/put
+     #_[:crux.tx/put
       {:crux.db/id :rule3
        :type "Rule"
        ::pass/description "Ken should be able to see his own org and those of his customers"
