@@ -155,7 +155,8 @@
   (spin/options (::spin/methods resource)))
 
 (defmethod transform-value "password" [_ instance]
-  (password/encrypt instance))
+  ;; TODO: Increase work-factor to 11 (not a reference to Spinal Tap!)
+  (password/encrypt instance 4))
 
 (defn authenticate
   "Authenticate a request. Return the request with any credentials, roles and
@@ -164,14 +165,16 @@
   scheme(s) for accessing the resource."
   [request resource db]
   (let [{::spin.auth/keys [user password]}
-        (spin.auth/decode-authorization-header request)]
+        (spin.auth/decode-authorization-header request)
+        uid (java.net.URI. (format "/_crux/pass/users/%s" user))]
     (or
-     (when-let [e (crux/entity db (java.net.URI. (format "/_crux/pass/users/%s" user)))]
+     (when-let [e (crux/entity db uid)]
        (when (password/check password (::pass/password-hash!! e))
          ;; TODO: This might be where we also add the 'on-behalf-of' info
-         (->
-          (assoc request ::pass/user (assoc e ::pass/username user))
-          (dissoc ::pass/password-hash!!))))
+         (-> request
+          ;; The password hash has now been used, let's discard it
+          (dissoc ::pass/password-hash!!)
+          (assoc ::pass/user uid ::pass/username user))))
 
      ;; Default
      request)))

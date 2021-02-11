@@ -12,39 +12,40 @@
 
 ;; PDP (Policy Decision Point)
 
-(defn- request-decision [db context]
+(defn- request-decision [db {:keys [request resource]}]
   (let [
         ;; TODO: But we should go through all policies, bring in their
         ;; attributes to merge into the target, then for each rule in the
         ;; policy... the apply rule-combining algo...
 
-        rules (crux/q db '{:find [rule (distinct target-clauses)]
-                           :where [[rule ::pass/target target-clauses]]})
+        rules (crux/q db '{:find [rule]
+                           :where [[rule :type "Rule"]]})
 
         _  (log/debugf "Rules to match are %s" (pr-str rules))
-        context-id (java.util.UUID/randomUUID)
-        _ (log/debugf "Submitting context to db: %s" context)
+
+        request-id (java.util.UUID/randomUUID)
+        _ (log/debugf "Submitting request to db: %s" request)
+        resource-id (java.util.UUID/randomUUID)
+        ;;_ (log/debugf "Submitting resource to db: %s" resource)
 
         db (crux/with-tx db
-             [[:crux.tx/put (assoc context :crux.db/id context-id)]
-              ])]
+             [[:crux.tx/put (assoc request :crux.db/id request-id)]
+              [:crux.tx/put (assoc resource :crux.db/id resource-id)]])]
 
     ;; Map across each rule in the system (we can memoize later for
     ;; performance).
-    (map
-     (fn [[rule target-clauses]]
-       (let [rule-ent (crux/entity db rule)]
-         (assoc
-          rule-ent
-          ::pass/matched?
-          (contains?
-           (set (map first (crux/q db {:find ['context]
-                                       :where (into [['context :crux.db/id 'context-id]]
-                                                    target-clauses)
-                                       :in ['context-id]}
-                                   context-id)))
-           context-id))))
-     rules)))
+
+    (vec
+     (map
+      (fn [[rule]]
+        (let [rule-ent (crux/entity db rule)
+              q {:find ['success]
+                 :where (into '[[(identity true) success]]
+                              (::pass/target rule-ent))
+                 :in ['request 'resource]}
+              match-results (crux/q db q request-id resource-id)]
+          (assoc rule-ent ::pass/matched? (pos? (count match-results)))))
+      rules))))
 
 (defn authorization [db context]
   (let [
@@ -104,7 +105,7 @@
   have been applied."
   [request resource db]
 
-  (let [username (get-in request [::pass/user ::pass/username])]
+  (let [username (get request ::pass/username)]
     (when resource
       (cond
 
@@ -139,6 +140,7 @@
                                :resource resource}
               authorization (authorization db request-context)]
 
+          (println "authorization is")
           (prn authorization)
 
           (if-not (= (::pass/access authorization) ::pass/approved)

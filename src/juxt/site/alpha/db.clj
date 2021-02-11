@@ -24,7 +24,8 @@
 
     [
      [:crux.tx/put
-      {:crux.db/id :rule2
+      {:crux.db/id :rule1
+       :type "Rule"
 
        ::pass/description
        "Paul can do anything :)"
@@ -32,17 +33,45 @@
        ;; used to match the rule against the target
        ::pass/target
        '[
-         [(get-attr context :request) request]
-         [(get request ::pass/user) user]
-         [(get user ::pass/username) username]
-         [(= username "rlwspaul")]
+         [request ::pass/username "rlwspaul"]
+         ;;[user :pass/us]
+         ;;[resource]
+         ;;[(get user ::pass/username) username]
+         ;;[(= username "rlwspaul")]
          ]
 
        ::pass/effect ::pass/allow
 
        ;; the effect of the rule 'going forward'
-       ::pass/limiting-clauses
-       '[(or
+       #_::pass/limiting-clauses
+       #_'[(or
+          [e :dealership dealership]
+          [e :owner dealership])
+         [(get context ::pass/role) role]
+           [role :owner dealership]]}]
+
+     [:crux.tx/put
+      {:crux.db/id :rule2
+       :type "Rule"
+
+       ::pass/description
+       "Paul can do anything :)"
+
+       ;; used to match the rule against the target
+       ::pass/target
+       '[
+         [request ::pass/username "rlwspaul"]
+         ;;[user :pass/us]
+         ;;[resource]
+         ;;[(get user ::pass/username) username]
+         ;;[(= username "rlwspaul")]
+         ]
+
+       ::pass/effect ::pass/allow
+
+       ;; the effect of the rule 'going forward'
+       #_::pass/limiting-clauses
+       #_'[(or
           [e :dealership dealership]
           [e :owner dealership])
          [(get context ::pass/role) role]
