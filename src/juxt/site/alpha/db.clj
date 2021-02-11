@@ -22,17 +22,7 @@
     (entity/user-entity "crux/admin" "FunkyForest")
     ;; TODO: Policies
 
-    ;; Rules have targets which match a request context
-    ;; A target is a set of constraints
-    ;; There are some pre-bound symbols that can be used in these constraints:
-    ;; request - a Crux entity representing the request
-    ;; resource - a Crux entity representing the resource
-    ;; (coming soon: action and environment)
-    ;;
-    ;; A rule has an effect, either to allow or deny the request If the rule is
-    ;; allowed, further 'advice' is provided which can be used by the system to
-    ;; restrict visibility (e.g. limiting-clauses)
-    [
+    #_[
      [:crux.tx/put
       {:crux.db/id :rule1
        :type "Rule"
