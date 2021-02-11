@@ -35,17 +35,17 @@
     ;; Map across each rule in the system (we can memoize later for
     ;; performance).
 
-    (vec
-     (map
-      (fn [[rule]]
-        (let [rule-ent (crux/entity db rule)
-              q {:find ['success]
-                 :where (into '[[(identity true) success]]
-                              (::pass/target rule-ent))
-                 :in ['request 'resource]}
-              match-results (crux/q db q request-id resource-id)]
-          (assoc rule-ent ::pass/matched? (pos? (count match-results)))))
-      rules))))
+    (keep
+     (fn [[rule]]
+       (let [rule-ent (crux/entity db rule)]
+         (when-let [target (::pass/target rule-ent)]
+           (let [q {:find ['success]
+                    :where (into '[[(identity true) success]]
+                                 target)
+                    :in ['request 'resource]}
+                 match-results (crux/q db q request-id resource-id)]
+             (assoc rule-ent ::pass/matched? (pos? (count match-results)))))))
+     rules)))
 
 (defn authorization [db context]
   (let [

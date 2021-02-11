@@ -22,60 +22,48 @@
     (entity/user-entity "crux/admin" "FunkyForest")
     ;; TODO: Policies
 
+    ;; Rules have targets which match a request context
+    ;; A target is a set of constraints
+    ;; There are some pre-bound symbols that can be used in these constraints:
+    ;; request - a Crux entity representing the request
+    ;; resource - a Crux entity representing the resource
+    ;; (coming soon: action and environment)
+    ;;
+    ;; A rule has an effect, either to allow or deny the request If the rule is
+    ;; allowed, further 'advice' is provided which can be used by the system to
+    ;; restrict visibility (e.g. limiting-clauses)
     [
      [:crux.tx/put
       {:crux.db/id :rule1
        :type "Rule"
+       ::pass/description "Paul can do anything :)"
 
-       ::pass/description
-       "Paul can do anything :)"
-
-       ;; used to match the rule against the target
        ::pass/target
-       '[
-         [request ::pass/username "rlwspaul"]
-         ;;[user :pass/us]
-         ;;[resource]
-         ;;[(get user ::pass/username) username]
-         ;;[(= username "rlwspaul")]
-         ]
+       '[[request ::pass/username "rlwspaul"]]
 
-       ::pass/effect ::pass/allow
-
-       ;; the effect of the rule 'going forward'
-       #_::pass/limiting-clauses
-       #_'[(or
-          [e :dealership dealership]
-          [e :owner dealership])
-         [(get context ::pass/role) role]
-           [role :owner dealership]]}]
+       ::pass/effect ::pass/allow}]
 
      [:crux.tx/put
       {:crux.db/id :rule2
        :type "Rule"
-
        ::pass/description
-       "Paul can do anything :)"
+       "People called Malcolm Sparks can do anything :)"
 
        ;; used to match the rule against the target
        ::pass/target
        '[
-         [request ::pass/username "rlwspaul"]
-         ;;[user :pass/us]
-         ;;[resource]
-         ;;[(get user ::pass/username) username]
-         ;;[(= username "rlwspaul")]
-         ]
+         [request ::pass/user user]
+         [user :name "Malcolm Sparks"]]
 
        ::pass/effect ::pass/allow
 
        ;; the effect of the rule 'going forward'
        #_::pass/limiting-clauses
        #_'[(or
-          [e :dealership dealership]
-          [e :owner dealership])
-         [(get context ::pass/role) role]
-         [role :owner dealership]]}]]
+            [e :dealership dealership]
+            [e :owner dealership])
+           [(get context ::pass/role) role]
+           [role :owner dealership]]}]]
 
     ))
 
