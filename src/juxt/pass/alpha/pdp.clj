@@ -35,6 +35,8 @@
     ;; Map across each rule in the system (we can memoize later for
     ;; performance).
 
+    (prn "considering all these rules:" rules)
+
     (keep
      (fn [[rule]]
        (let [rule-ent (crux/entity db rule)]
