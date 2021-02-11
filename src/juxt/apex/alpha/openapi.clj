@@ -284,34 +284,44 @@
           "\r\n"))))))
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db authorization]
-  (let [cell-attrs {:style "border: 1px solid #888; padding: 4pt; text-align: left"}]
+  (let [cell-attrs {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
+        openapis (sort-by
+                  (comp str first)
+                  (crux/q db '{:find [e openapi]
+                               :where [[e ::apex/openapi openapi]]}))]
     (.getBytes
      (str
       (hp/html5
-       [:h1 "Site APIs"]
-       [:p "These APIs are loaded and available"]
-       [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
-        [:thead
-         [:tr
-          (for [field ["Path" "Title" "Contact" "Swagger UI"]]
-            [:th cell-attrs field])]]
-        [:tbody
-         (for [[uri openapi]
-               ;; TODO: authorization
-               (crux/q db '{:find [e openapi]
-                            :where [[e ::apex/openapi openapi]]})]
-           [:tr
-            [:td cell-attrs
-             (get-in openapi ["servers" 0 "url"])]
+       [:h1 "APIs"]
+       (if (pos? (count openapis))
+         (list
+          [:p "These APIs are loaded and available:"]
+          [:table {:style "border: 1px solid #888; border-collapse: collapse; "}
+           [:thead
+            [:tr
+             (for [field ["Path" "Title" "Description" "Contact" "Swagger UI"]]
+               [:th cell-attrs field])]]
+           [:tbody
+            (for [[uri openapi]
+                  ;; TODO: authorization
+                  openapis]
+              [:tr
+               [:td cell-attrs
+                (get-in openapi ["servers" 0 "url"])]
 
-            [:td cell-attrs
-             (get-in openapi ["info" "title"])]
+               [:td cell-attrs
+                (get-in openapi ["info" "title"])]
 
-            [:td cell-attrs
-             (get-in openapi ["info" "contact" "name"])]
+               [:td cell-attrs
+                (get-in openapi ["info" "description"])]
 
-            [:td cell-attrs
-             [:a {:href (format "/_crux/swagger-ui/index.html?url=%s" uri)} uri]]])]])
+               [:td cell-attrs
+                (get-in openapi ["info" "contact" "name"])]
+
+               [:td cell-attrs
+                [:a {:href (format "/_crux/swagger-ui/index.html?url=%s" uri)} uri]]])]])
+         (list
+          [:p "These are no APIs loaded."])))
 
       "\r\n"))))
 
