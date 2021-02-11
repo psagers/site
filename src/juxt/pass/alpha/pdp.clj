@@ -89,19 +89,14 @@
   ;; query. We duplicate each set of limiting clauses. For each copy,
   ;; we replace 'e (which, by convention, is what we use in a limiting
   ;; clause), with the actual symbols used in the given Datalog query.
-  (prn "->authorized-query, query is" query)
-  (prn "->authorized-query, authorization is" authorization)
 
-  (let [result
-        (when (= (::pass/access authorization) ::pass/approved)
-          (let [combined-limiting-clauses
-                (apply concat (for [sym (distinct (filter symbol? (map first (:where query))))]
-                                (postwalk-replace {'e sym} (::pass/limiting-clauses authorization))))]
-            (cond-> query
-                ;;(assoc :in '[context])
-              combined-limiting-clauses (update :where (comp vec concat) combined-limiting-clauses))))]
-    (prn "->authorized-query, result is" result)
-    result))
+  (when (= (::pass/access authorization) ::pass/approved)
+    (let [combined-limiting-clauses
+          (apply concat (for [sym (distinct (filter symbol? (map first (:where query))))]
+                          (postwalk-replace {'e sym} (::pass/limiting-clauses authorization))))]
+      (cond-> query
+        ;;(assoc :in '[context])
+        combined-limiting-clauses (update :where (comp vec concat) combined-limiting-clauses)))))
 
 (defn authorize
   "Return the resource, as it appears to the request after authorization rules
