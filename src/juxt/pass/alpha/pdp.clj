@@ -12,9 +12,18 @@
 
 ;; PDP (Policy Decision Point)
 
-(defn- request-decision [db {:keys [request resource]}]
-  (let [
-        ;; TODO: But we should go through all policies, bring in their
+;; See 3.2 of
+;; http://docs.oasis-open.org/xacml/3.0/errata01/os/xacml-3.0-core-spec-errata01-os-complete.html#_Toc489959503
+
+(defn authorization
+  "Returns authorization information. Context is all the attributes that pertain to the subject, resource,
+  action, environment and maybe more."
+  [db {:keys [request resource]}]
+
+  ;; Map across each rule in the system (we can memoize later for
+  ;; performance).
+
+  (let [ ;; TODO: But we should go through all policies, bring in their
         ;; attributes to merge into the target, then for each rule in the
         ;; policy... the apply rule-combining algo...
 
@@ -30,44 +39,31 @@
 
         db (crux/with-tx db
              [[:crux.tx/put (assoc request :crux.db/id request-id)]
-              [:crux.tx/put (assoc resource :crux.db/id resource-id)]])]
+              [:crux.tx/put (assoc resource :crux.db/id resource-id)]])
 
-    ;; Map across each rule in the system (we can memoize later for
-    ;; performance).
+        evaluated-rules
+        (keep
+         (fn [[rule]]
+           (let [rule-ent (crux/entity db rule)]
+             (when-let [target (::pass/target rule-ent)]
+               (let [q {:find ['success]
+                        :where (into '[[(identity true) success]]
+                                     target)
+                        :in ['request 'resource]}
+                     match-results (crux/q db q request-id resource-id)]
+                 (assoc rule-ent ::pass/matched? (pos? (count match-results)))))))
+         rules)
 
-    (prn "considering all these rules:" rules)
+        _ (log/debugf "Result of rule matching: %s" (pr-str evaluated-rules))
 
-    (keep
-     (fn [[rule]]
-       (let [rule-ent (crux/entity db rule)]
-         (when-let [target (::pass/target rule-ent)]
-           (let [q {:find ['success]
-                    :where (into '[[(identity true) success]]
-                                 target)
-                    :in ['request 'resource]}
-                 match-results (crux/q db q request-id resource-id)]
-             (assoc rule-ent ::pass/matched? (pos? (count match-results)))))))
-     rules)))
-
-(defn authorization [db context]
-  (let [
-        ;; See 3.2 of
-        ;; http://docs.oasis-open.org/xacml/3.0/errata01/os/xacml-3.0-core-spec-errata01-os-complete.html#_Toc489959503
-
-        ;; This is all the attributes that pertain to the subject, resource,
-        ;; action, environment and maybe more.
-
-        decision (request-decision db context)
-
-        _ (log/debugf "Decision: %s" (pr-str decision))
-
-        matched-rules (filter ::pass/matched? decision)
+        matched-rules (filter ::pass/matched? evaluated-rules)
 
         allowed? (and
                   (pos? (count matched-rules))
                   ;; Rule combination algorithm is every?
                   (every? #(= (::pass/effect %) ::pass/allow) matched-rules))]
 
+    (log/debugf "Allowed?: %s" allowed?)
     (if-not allowed?
       #::pass
       {:access ::pass/denied
@@ -93,14 +89,19 @@
   ;; query. We duplicate each set of limiting clauses. For each copy,
   ;; we replace 'e (which, by convention, is what we use in a limiting
   ;; clause), with the actual symbols used in the given Datalog query.
-  (when (= (::pass/access authorization) ::pass/approved)
-    (let [combined-limiting-clauses
-          (apply concat (for [sym (distinct (filter symbol? (map first (:where query))))]
-                          (postwalk-replace {'e sym} (::pass/limiting-clauses authorization))))]
-      (-> query
-          (assoc :in '[context])
-          (update :where (comp vec concat) combined-limiting-clauses)))))
+  (prn "->authorized-query, query is" query)
+  (prn "->authorized-query, authorization is" authorization)
 
+  (let [result
+        (when (= (::pass/access authorization) ::pass/approved)
+          (let [combined-limiting-clauses
+                (apply concat (for [sym (distinct (filter symbol? (map first (:where query))))]
+                                (postwalk-replace {'e sym} (::pass/limiting-clauses authorization))))]
+            (cond-> query
+                ;;(assoc :in '[context])
+              combined-limiting-clauses (update :where (comp vec concat) combined-limiting-clauses))))]
+    (prn "->authorized-query, result is" result)
+    result))
 
 (defn authorize
   "Return the resource, as it appears to the request after authorization rules
@@ -113,7 +114,7 @@
 
         ;; Give the crux admin god-like power
         (= username "crux/admin")
-        resource
+        {:resource resource}
 
         (and
          (.startsWith (:uri request) "/_crux/")
@@ -142,9 +143,6 @@
                                :resource resource}
               authorization (authorization db request-context)]
 
-          (println "authorization is")
-          (prn authorization)
-
           (if-not (= (::pass/access authorization) ::pass/approved)
             (throw
              (if username
@@ -165,4 +163,4 @@
                       ::spin/realm "Users"}])}
                   :body "Unauthorized\r\n"}})))
 
-            resource))))))
+            {:resource resource :authorization authorization}))))))

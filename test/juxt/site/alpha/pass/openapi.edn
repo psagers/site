@@ -336,12 +336,14 @@
       :required ["target" "effect"]
       :juxt.jinx.alpha/keyword-mappings {"description" "juxt.pass.alpha/description"
                                          "target" "juxt.pass.alpha/target"
-                                         "effect" "juxt.pass.alpha/effect"}
+                                         "effect" "juxt.pass.alpha/effect"
+                                         "limitingClauses" "juxt.pass.alpha/limiting-clauses"}
       :properties
       {"type" {:const "Rule"}
        "description" {:type "string"}
        "target" {:type "string" :juxt.jinx.alpha/as "edn"}
-       "effect" {:type "string" :juxt.jinx.alpha/as "keyword"}}}]}
+       "effect" {:type "string" :juxt.jinx.alpha/as "keyword"}
+       "limitingClauses" {:type "string" :juxt.jinx.alpha/as "edn"}}}]}
 
    "IdentifiedRule"
    {"$id" "/schemas/IdentifiedRule"

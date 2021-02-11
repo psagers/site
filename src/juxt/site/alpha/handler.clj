@@ -88,7 +88,7 @@
                 [resource ::spin/representation representation-id]]}
       (:crux.db/id resource))))))
 
-(defn GET [request resource date selected-representation db]
+(defn GET [request resource date selected-representation db authorization]
   (let [representation-metadata-headers (response/representation-metadata-headers selected-representation)]
     (spin/evaluate-preconditions! request resource representation-metadata-headers date)
 
@@ -108,7 +108,7 @@
          content (.getBytes content (or charset "utf-8"))
          bytes bytes
          path-item-object (.getBytes (get-in path-item-object ["get" "description"]))
-         bytes-generator (generate-representation-body request resource selected-representation db))))))
+         bytes-generator (generate-representation-body request resource selected-representation db authorization))))))
 
 (defn receive-representation [request resource date]
   (let [{metadata ::spin/representation-metadata
@@ -184,11 +184,11 @@
     (let [db (crux/db crux-node)]
       (spin/check-method-not-implemented! request)
       (let [resource (locate-resource request db)
-
             request (authenticate request resource db)
-            resource (pdp/authorize request resource db)
+            {:keys [resource authorization]} (pdp/authorize request resource db)
 
-            _ (spin/check-method-not-allowed! request resource)
+            ;; TODO: Promote this when guard to spin's demo
+            _ (when resource (spin/check-method-not-allowed! request resource))
 
             date (new java.util.Date)
 
@@ -203,7 +203,7 @@
         (case (:request-method request)
 
           (:get :head)
-          (GET request resource date selected-representation db)
+          (GET request resource date selected-representation db authorization)
 
           :post
           (POST request resource date crux-node)
