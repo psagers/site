@@ -63,8 +63,18 @@
             [e :dealership dealership]
             [e :owner dealership])
            [(get context ::pass/role) role]
-           [role :owner dealership]]}]]
+           [role :owner dealership]]}]
 
+     ;; Ken shouldn't be able to see the RLWS org
+     [:crux.tx/put
+      {:crux.db/id :rule3
+       :type "Rule"
+       ::pass/description "Ken should be able to see his own org and those of his customers"
+
+       ::pass/target
+       '[[request ::pass/username "ken"]]
+
+       ::pass/effect ::pass/allow}]]
     ))
 
   (crux/sync crux-node))
