@@ -25,7 +25,10 @@
   :juxt.pass.alpha.authentication/resources
   {:crux-node #ig/ref :juxt.site.alpha.db/crux-node}
 
-  :juxt.pass.alpha.pdp/rules
+  :juxt.site.alpha.home/resources
+  {:crux-node #ig/ref :juxt.site.alpha.db/crux-node}
+
+  :juxt.pass.alpha.pdp/resources
   {:crux-node #ig/ref :juxt.site.alpha.db/crux-node}
 
   :juxt.site.alpha.server/server

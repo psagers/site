@@ -73,3 +73,31 @@ Pick has a way to weight preferred responses, we should use it.
 ** TODO Add a policy that a template can be read locally - needs to come via metadata - so read webdav to that
 
 Propset?
+
+
+* <2021-02-18 Thu>
+
+** TODO Home page
+SCHEDULED: <2021-02-18 Thu 23:00>
+
+*** DONE Add resource on reset
+
+*** DONE Provide a welcome home-page
+
+*** TODO Redirect to /index.html
+SCHEDULED: <2021-02-18 Thu 23:00>
+
+*** TODO Content
+
+Links to REST, etc.
+
+** TODO Login page
+SCHEDULED: <2021-03-11 Thu 23:30>
+
+** TODO Promote Pass API
+
+** TODO Deployment
+
+home.juxt.site - JUXT intranet and test site for site
+info.juxt.site - information portal
+demo.juxt.site - site demo

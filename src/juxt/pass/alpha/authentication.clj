@@ -4,13 +4,15 @@
   (:require
    [jsonista.core :as json]
    [clojure.tools.logging :as log]
+   [crypto.password.bcrypt :as password]
    [crux.api :as crux]
    [integrant.core :as ig]
    [juxt.pass.alpha :as pass]
    [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :refer [hexdigest]]
    [juxt.spin.alpha :as spin]
-   [juxt.spin.alpha.auth :refer [decode-authorization]]))
+   [juxt.spin.alpha.auth :refer [decode-authorization]]
+   [ring.util.codec :refer [form-decode]]))
 
 (def GRANT-TYPES #{"client_credentials"})
 
@@ -20,36 +22,52 @@
     (crux/submit-tx
      crux-node
 
-     ;; Authentication resources - promote these into own ns
-     (let [token-endpoint "/_site/token"]
-       [[:crux.tx/put
-         {:crux.db/id token-endpoint
-          ::spin/methods #{:post}
-          ::spin/acceptable "application/x-www-form-urlencoded"
-          ::pass/expires-in 60}]
+     (concat
+      [[:crux.tx/put
+        {:crux.db/id "/_site/login"
+         ::spin/methods #{:post}
+         ::purpose ::login
+         ::pass/classification "PUBLIC"
+         ::spin/acceptable "application/x-www-form-urlencoded"}]
 
-        (let [content
-              (str
-               (json/write-value-as-string
-                {"issuer" "https://juxt.site" ; draft
-                 "token_endpoint" token-endpoint
-                 "token_endpoint_auth_methods_supported" ["client_secret_basic"]
-                 "grant_types_supported" (vec GRANT-TYPES)}
-                (json/object-mapper
-                 {:pretty true}))
-               "\r\n")]
-          [:crux.tx/put
-           {:crux.db/id "/.well-known/openid-configuration"
+       [:crux.tx/put
+        {:crux.db/id "/_site/pass/rules/login-is-public"
+         :type "Rule"
+         :description "User login resource is public"
+         ::pass/target '[[request :request-method #{:post}]
+                         [resource ::purpose ::login]]
+         ::pass/effect ::pass/allow}]]
 
-            ;; OpenID Connect Discovery documents are publically available
-            ::pass/classification "PUBLIC"
+      ;; Authentication resources - promote these into own ns
+      (let [token-endpoint "/_site/token"]
+        [[:crux.tx/put
+          {:crux.db/id token-endpoint
+           ::spin/methods #{:post}
+           ::spin/acceptable "application/x-www-form-urlencoded"
+           ::pass/expires-in 60}]
 
-            ::spin/methods #{:get :head :options}
-            ::spin/representations
-            [{::spin/content-type "application/json"
-              ::spin/last-modified (java.util.Date.)
-              ::spin/etag (subs (hexdigest (.getBytes content)) 0 32)
-              ::spin/content content}]}])]))
+         (let [content
+               (str
+                (json/write-value-as-string
+                 {"issuer" "https://juxt.site" ; draft
+                  "token_endpoint" token-endpoint
+                  "token_endpoint_auth_methods_supported" ["client_secret_basic"]
+                  "grant_types_supported" (vec GRANT-TYPES)}
+                 (json/object-mapper
+                  {:pretty true}))
+                "\r\n")]
+           [:crux.tx/put
+            {:crux.db/id "/.well-known/openid-configuration"
+
+             ;; OpenID Connect Discovery documents are publically available
+             ::pass/classification "PUBLIC"
+
+             ::spin/methods #{:get :head :options}
+             ::spin/representations
+             [{::spin/content-type "application/json"
+               ::spin/last-modified (java.util.Date.)
+               ::spin/etag (subs (hexdigest (.getBytes content)) 0 32)
+               ::spin/content content}]}])])))
 
     (catch Exception e
       (prn e))))
@@ -126,3 +144,52 @@
       (response/representation-metadata-headers response-representation)
       nil nil nil date body)
      (update :headers assoc "Cache-Control" "no-store"))))
+
+(defn login-response
+  [resource date posted-representation db]
+
+  ;; Check grant_type of posted-representation
+
+  (assert (= "application/x-www-form-urlencoded" (::spin/content-type posted-representation)))
+
+  (log/debug "posted-representation is" posted-representation)
+
+  (let [posted-body (slurp (::spin/bytes posted-representation))
+        {:strs [user password]} (form-decode posted-body)
+        uid (format "/_site/pass/users/%s" user)]
+
+    (log/debug "uid is" uid)
+
+    (or
+     (when user
+       (when-let [e (crux/entity db uid)]
+         (log/debug "e is" e)
+         (when (password/check password (::pass/password-hash!! e))
+           (let [access-token (access-token)
+                 expires-in (get resource ::pass/expires-in 3600)
+                 session {"access_token" access-token
+                          "token_type" "login"
+                          "expires_in" expires-in}
+                 _ (swap! sessions-by-access-token
+                          assoc access-token
+                          (merge
+                           session
+                           {::pass/user uid
+                            ::pass/username user}
+                           {:expiry-date
+                            (java.util.Date/from (.plusSeconds (.toInstant date) expires-in))}))]
+
+             (->
+              (spin/response
+               200
+               nil
+               ;;(response/representation-metadata-headers response-representation)
+               nil nil nil date (.getBytes (format "Thanks! Your access token is %s\r\n" access-token)))
+              (update :headers assoc "Cache-Control" "no-store"))))))
+
+     (throw
+      (ex-info
+       "Failed to login"
+       {::spin/response {:status 302 :headers {"location" "/"}}})))
+
+    ))

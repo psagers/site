@@ -20,7 +20,8 @@
   (-> {}
       (assoc-when-some "content-length" (or
                                          (some-> rep ::spin/content-length str)
-                                         (some-> body count str)))
+                                         (when (counted? body)
+                                           (some-> body count str))))
       (assoc-when-some "content-range" (::spin/content-range rep))
       (assoc-when-some "trailer" (::spin/trailer rep))
       (assoc-when-some "transfer-encoding" (::spin/transfer-encoding rep))))

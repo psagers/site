@@ -129,6 +129,9 @@
       "/_site/token"
       (authn/token-response resource date posted-representation subject)
 
+      "/_site/login"
+      (authn/login-response resource date posted-representation db)
+
       (throw
        (ex-info
         "POST not handled, returning 404"
@@ -344,6 +347,16 @@
         request (dissoc request ::crux-db ::crux-node)
 
         resource (locate-resource request db)
+
+        _ (when-let [redirect (::spin/redirect resource)]
+            (throw
+             (ex-info
+              "Redirect"
+              {::spin/response
+               {:status (case (:request-method request)
+                          (:get :head) 302
+                          307)
+                :headers {"location" redirect}}})))
 
         _ (log/debug
            "Result of locate-resource"

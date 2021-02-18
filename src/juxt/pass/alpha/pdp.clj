@@ -105,7 +105,7 @@
         ;;(assoc :in '[context])
         combined-limiting-clauses (update :where (comp vec concat) combined-limiting-clauses)))))
 
-(defmethod ig/init-key ::rules [_ {:keys [crux-node]}]
+(defmethod ig/init-key ::resources [_ {:keys [crux-node]}]
   (println "Adding built-in users/rules")
   (try
     (crux/submit-tx
@@ -132,7 +132,9 @@
          :description "PUBLIC resources are accessible to GET"
          ::pass/target '[[request :request-method #{:get :head :options}]
                          [resource ::pass/classification "PUBLIC"]]
-         ::pass/effect ::pass/allow}]]))
+         ::pass/effect ::pass/allow}]]
+
+      ))
 
     (catch Exception e
       (prn e))))
