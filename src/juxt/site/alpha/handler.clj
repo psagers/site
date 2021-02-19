@@ -270,33 +270,6 @@
 (defmethod transform-value "inst" [_ instance]
   (java.util.Date/from (java.time.Instant/parse instance)))
 
-(defn authenticate
-  "Authenticate a request. Return a pass subject, with information about user,
-  roles and other credentials. The resource can be used to determine the
-  particular Protection Space that it is part of, and the appropriate
-  authentication scheme(s) for accessing the resource."
-  [request resource db]
-  (let [{::spin/keys [auth-scheme] :as claims}
-        (spin.auth/decode-authorization-header request)]
-    (when claims
-      (when-let [authentication
-                 (case auth-scheme
-                   "Basic"
-                   (let [{::spin.auth/keys [user password]} claims
-                         uid (format "/_site/pass/users/%s" user)]
-                     (when-let [e (crux/entity db uid)]
-                       (when (password/check password (::pass/password-hash!! e))
-                         ;; TODO: This might be where we also add the 'on-behalf-of' info
-                         {::pass/user uid
-                          ::pass/username user})))
-
-                   "Bearer" claims
-
-                   (throw (ex-info "Unknown auth scheme" {:auth-scheme auth-scheme
-                                                          :claims claims})))]
-        (org.slf4j.MDC/put "user" (::pass/username authentication))
-        authentication))))
-
 (defn check-method-not-allowed!
   [request resource methods]
   (if resource
@@ -320,20 +293,6 @@
           :headers {"allow" (spin/allow-header #{:get :head})}
           :body "Method Not Allowed\r\n"}
          ::spin/resource resource})))))
-
-;; To avoid a 500 on unimplemented auth schemes
-(defmethod spin.auth/decode-authorization :default [_]
-  (throw
-   (ex-info
-    "Unauthorized"
-    {::spin/response
-     {:status 401
-      :headers
-      {"www-authenticate"
-       (spin.auth/www-authenticate
-        [{::spin/authentication-scheme "Basic"
-          ::spin/realm "Users"}])}
-      :body "Unauthorized\r\n"}})))
 
 (defn handler [{db ::crux-db crux-node ::crux-node :as request}]
   (spin/check-method-not-implemented!
@@ -380,7 +339,8 @@
         ;; Section 8.5, RFC 4918 states "the server MUST do authorization checks
         ;; before checking any HTTP conditional header.".
 
-        subject (authenticate request resource db)
+        subject (authn/authenticate request resource date db)
+        _ (when subject (org.slf4j.MDC/put "user" (::pass/username subject)))
 
         request-context {'subject subject
                          'resource resource
@@ -480,12 +440,13 @@
       (h req)
       (catch clojure.lang.ExceptionInfo e
         ;;          (tap> e)
-        (log/errorf
-         e "%s: %s" (.getMessage e)
-         (pr-str (into {::spin/request req} (ex-data e))))
-        (prn e)
-        (pprint (into {::spin/request req} (ex-data e)))
         (let [exdata (ex-data e)]
+          (when-not (::spin/response exdata)
+            (pprint (into {::spin/request req} (ex-data e)))
+            (prn e)
+            (log/errorf
+             e "%s: %s" (.getMessage e)
+             (pr-str (into {::spin/request req} exdata))))
           (or
            (::spin/response exdata)
            {:status 500 :body "Internal Error\r\n"})))
