@@ -166,7 +166,6 @@
      ;; Cookie
      (when access-token
        (when-let [session (lookup-session access-token date)]
-         (log/trace "Authenticating in with existing session")
          (select-keys session [::pass/user ::pass/username])))
 
      ;; Authorization header

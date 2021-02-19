@@ -139,21 +139,6 @@
          {:status 404
           :body "Not Found\r\n"}})))))
 
-;; TODO: Not sure there should be a general way of writing resources like this, without a lot of authorization checks
-#_(defn put-resource
-    [request _ new-representation old-representation crux-node]
-    (let [new-resource
-          (->
-           (json/read-value (::spin/bytes new-representation) (json/object-mapper {:decode-key-fn true}))
-           (update ::spin/methods #(set (map keyword %))))]
-      (log/debugf "New resource: %s" (pr-str new-resource))
-      (let [now (java.util.Date.)
-            new-resource (assoc new-resource :crux.db/id (:uri request))]
-        (->>
-         (crux/submit-tx crux-node [[:crux.tx/put new-resource]])
-         (crux/await-tx crux-node))
-        (spin/response (if old-representation 200 201) nil nil request nil now nil))))
-
 (defn put-static-representation
   "PUT a new representation of the target resource. All other representations are
   replaced."
@@ -208,12 +193,6 @@
          (.equalsIgnoreCase "application" type)
          (.equalsIgnoreCase "json" subtype))
         (openapi/put-json-representation
-         request resource new-representation selected-representation crux-node)
-
-        #_(and
-         (.equalsIgnoreCase "application" type)
-         (.equalsIgnoreCase "vnd.juxt.site-resource+json" subtype))
-        #_(put-resource
          request resource new-representation selected-representation crux-node)
 
         (and
@@ -419,8 +398,6 @@
         (org.slf4j.MDC/put "uri" (:uri req))
         (org.slf4j.MDC/put "method" (str/upper-case (name (:request-method req))))
         (log/debug "Request received" (pr-str (dissoc req :body)))
-
-        ;;(prn "body:" (slurp (:body req)))
 
         (let [res (h req)]
           (org.slf4j.MDC/remove "uri")
