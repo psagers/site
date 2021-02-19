@@ -97,11 +97,6 @@
       nil nil nil date body)
      (update :headers assoc "Cache-Control" "no-store"))))
 
-#_(password/check
- "HarryFord1782"
- (::pass/password-hash!!
-  (crux/entity (dev/db) (format "/_site/pass/users/%s" "juxtmal"))))
-
 (defn login-response
   [resource date posted-representation db]
 
@@ -112,9 +107,7 @@
   (let [posted-body (slurp (::spin/bytes posted-representation))
         {:strs [user password]} (form-decode posted-body)
         uid (format "/_site/pass/users/%s" user)]
-
     (or
-
      (when user
        (when-let [e (crux/entity db uid)]
          (when (password/check password (::pass/password-hash!! e))
@@ -147,7 +140,6 @@
                                 :http-only true
                                 :path "/"}})
               (cookies-response))))))
-
      (throw
       (ex-info
        "Failed to login"
@@ -160,7 +152,6 @@
   authentication scheme(s) for accessing the resource."
   [request resource date db]
   ;; TODO: This might be where we also add the 'on-behalf-of' info
-
   (let [access-token (some-> request cookies-request :cookies (get "access_token") :value)]
     (or
      ;; Cookie

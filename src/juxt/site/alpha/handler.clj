@@ -17,6 +17,7 @@
    [juxt.pass.alpha.authentication :as authn]
    [juxt.pick.alpha.ring :refer [pick]]
    [juxt.reap.alpha.decoders :as reap.decoders]
+   [juxt.site.alpha.home :as home]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
    [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
@@ -61,6 +62,8 @@
    (openapi/locate-resource request db)
 
    (crux/entity db (:uri request))
+
+   (home/locate-resource request)
 
    {::spin/methods #{:get :head :options}}))
 
