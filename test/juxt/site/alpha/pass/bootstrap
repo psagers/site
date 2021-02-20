@@ -92,8 +92,6 @@
 ;; Now we are ready to PUT a role that will the owners of this Crux Site
 ;; instance will belong to.
 
-;; TODO: Do a loop
-
 (doseq [{:keys [id name]}
         [{:id "owner" :name "Owners"}
          {:id "superuser" :name "Superusers"}

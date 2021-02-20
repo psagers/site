@@ -41,7 +41,8 @@
 
       ;; Or it might not
       ;; This last item (:put) might be granted by the PDP.
-      {::site/description
+      {::site/resource-provider ::openapi-empty-document-resource
+       ::site/description
        "Resource with no representations accepting a PUT of an OpenAPI JSON document."
        ::spin/methods #{:get :head :options :put}
        ::spin/acceptable {"accept" "application/vnd.oai.openapi+json;version=3.0.2"}}))
@@ -101,7 +102,7 @@
 
                        operation-object (get path-item-object (name (:request-method request)))]
 
-                   {:description "OpenAPI matched path"
+                   {::site/resource-provider ::openapi-path
                     ::apex/openid-path path
                     ::apex/openid-path-params path-params
                     ::spin/methods

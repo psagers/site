@@ -37,6 +37,12 @@
    (map first
         (q '{:find [e] :where [[e :crux.db/id]]}))))
 
+(defn rules []
+  (sort-by
+   str
+   (map first
+        (q '{:find [(eql/project e [*])] :where [[e :type "Rule"]]}))))
+
 (defn uuid [s]
   (cond
     (string? s) (java.util.UUID/fromString s)
@@ -59,3 +65,9 @@
    (for [[e m] (q '{:find [e (distinct m)] :where [[e ::spin/methods m]]})
          :let [ent (crux/entity (db) e)]]
      [(str e) m (count (::spin/representations ent))])))
+
+
+(defn init-db [admin-password]
+
+
+  )

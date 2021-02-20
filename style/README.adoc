@@ -1,0 +1,13 @@
+= Style
+
+See https://tailwindcss.com/docs/upgrading-to-v2
+
+----
+npm install tailwindcss@latest postcss@latest autoprefixer@latest
+----
+
+Run the installer, which uploaded the CSS distribution to Site.
+
+----
+./install
+----

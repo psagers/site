@@ -121,6 +121,7 @@
       ;; users/roles have been populated, if required.
       [[:crux.tx/put
         {:crux.db/id "/_site/pass/rules/webmaster"
+         :description "The webmaster has read access to everything"
          :type "Rule"
          ::pass/target '[[subject :juxt.pass.alpha/username "webmaster"]]
          ::pass/effect ::pass/allow
