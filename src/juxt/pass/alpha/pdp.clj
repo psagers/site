@@ -132,9 +132,7 @@
          :description "PUBLIC resources are accessible to GET"
          ::pass/target '[[request :request-method #{:get :head :options}]
                          [resource ::pass/classification "PUBLIC"]]
-         ::pass/effect ::pass/allow}]]
-
-      ))
+         ::pass/effect ::pass/allow}]]))
 
     (catch Exception e
       (prn e))))

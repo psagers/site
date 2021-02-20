@@ -208,14 +208,13 @@
         {:crux.db/id "/_site/login"
          ::spin/methods #{:post}
          ::purpose ::login
-         ::pass/classification "PUBLIC"
          ::spin/acceptable "application/x-www-form-urlencoded"
          ::pass/expires-in (* 3600 24 30)}]
 
        [:crux.tx/put
         {:crux.db/id "/_site/pass/rules/login-is-public"
          :type "Rule"
-         :description "User login resource is public"
+         :description "The login POST handler must be accessible by all"
          ::pass/target '[[request :request-method #{:post}]
                          [resource ::purpose ::login]]
          ::pass/effect ::pass/allow}]]

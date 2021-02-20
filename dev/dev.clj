@@ -13,6 +13,21 @@
 (defn e [id]
   (crux/entity (db) id))
 
+(defn put [m]
+  (->>
+   (crux/submit-tx
+    (crux-node)
+    [[:crux.tx/put
+      m]])
+   (crux/await-tx (crux-node))))
+
+(defn d [id]
+  (->>
+   (crux/submit-tx
+    (crux-node)
+    [[:crux.tx/delete id]])
+   (crux/await-tx (crux-node))))
+
 (defn q [query]
   (crux/q (db) query))
 

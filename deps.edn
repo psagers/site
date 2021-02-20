@@ -32,7 +32,7 @@
         #_{:local/root "../jinx"}
 
         ;; Ring for some utility code
-        [ring/ring-core "1.9.1"]
+        ring/ring-core {:mvn/version "1.9.1"}
 
         ;; Security
         crypto-password/crypto-password {:mvn/version "0.2.1"}

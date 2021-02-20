@@ -17,6 +17,7 @@
    [juxt.pass.alpha.authentication :as authn]
    [juxt.pick.alpha.ring :refer [pick]]
    [juxt.reap.alpha.decoders :as reap.decoders]
+   [juxt.site.alpha :as site]
    [juxt.site.alpha.home :as home]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
    [juxt.site.alpha.response :as response]
@@ -61,11 +62,13 @@
   (or
    (openapi/locate-resource request db)
 
-   (crux/entity db (:uri request))
+   (when-let [e (crux/entity db (:uri request))]
+     (assoc e ::site/resource-provider ::crux))
 
-   (home/locate-resource request)
+   (home/locate-resource request db)
 
-   {::spin/methods #{:get :head :options}}))
+   {::site/resource-provider ::default-empty-resource
+    ::spin/methods #{:get :head :options}}))
 
 (defn current-representations [db resource date]
   (or
@@ -128,13 +131,24 @@
   (let [posted-representation (receive-representation request resource date)]
     (assert posted-representation)
 
-    (case (:uri request)
-      "/_site/token"
+    (cond
+      (= (:uri request) "/_site/token")
       (authn/token-response resource date posted-representation subject)
 
-      "/_site/login"
+      (= (:uri request) "/_site/login")
       (authn/login-response resource date posted-representation db)
 
+      (re-matches #"/~(\p{Alpha}[\p{Alnum}_-]*)/" (:uri request))
+      (do
+        (home/create-user-home-page request crux-node subject)
+        (throw
+         (ex-info
+          "Redirect to home page"
+          {::spin/response
+           {:status 303
+            :headers {"location" (:uri request)}}})))
+
+      :else
       (throw
        (ex-info
         "POST not handled, returning 404"
@@ -303,7 +317,7 @@
            "Result of locate-resource"
            (pr-str (select-keys
                     resource
-                    [:crux.db/id ::spin/methods ::spin/representations])))
+                    [:crux.db/id ::spin/methods ::spin/representations ::site/resource-provider])))
 
         date (new java.util.Date)
 
