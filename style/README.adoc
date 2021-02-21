@@ -1,13 +1,27 @@
 = Style
 
-See https://tailwindcss.com/docs/upgrading-to-v2
+== Setup for development
+
+https://tailwindcss.com/docs/installation#installing-tailwind-css-as-a-post-css-plugin
+
+Currently, we're doing the 'Installing Tailwind CSS as a PostCSS plugin'
+approach.
 
 ----
-npm install tailwindcss@latest postcss@latest autoprefixer@latest
+npm install tailwindcss@latest postcss@latest autoprefixer@latest postcss-cli@latest
 ----
 
-Run the installer, which uploaded the CSS distribution to Site.
+[NOTE]
+--
+I created the tailwind with
 
 ----
-./install
+npm tailwindcss init
+----
+--
+
+== Uploading to your Site instance
+
+----
+./upload
 ----

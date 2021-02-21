@@ -2,7 +2,7 @@
    "exec" "bb" "--classpath" "$(clojure -Spath -Sdeps '{:deps {io.aviso/pretty {:mvn/version "RELEASE"}}}')" "$0" "$@"
    )
 
-(ns install
+(ns upload-to-site
   (:require
    [babashka.curl :as curl]
    [io.aviso.ansi :as ansi]
