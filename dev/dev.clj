@@ -1,8 +1,12 @@
+;; Copyright © 2021, JUXT LTD.
+
 (ns dev
   (:require
-   [dev-extras :refer :all]
+   [clojure.java.io :as io]
    [crux.api :as crux]
-   [juxt.spin.alpha :as spin]))
+   [dev-extras :refer :all]
+   [juxt.spin.alpha :as spin])
+  (:import (java.io DataInputStream FileInputStream)))
 
 (defn crux-node []
   (:juxt.site.alpha.db/crux-node system))
@@ -13,12 +17,12 @@
 (defn e [id]
   (crux/entity (db) id))
 
-(defn put [m]
+(defn put [& ms]
   (->>
    (crux/submit-tx
     (crux-node)
-    [[:crux.tx/put
-      m]])
+    (for [m ms]
+      [:crux.tx/put m]))
    (crux/await-tx (crux-node))))
 
 (defn d [id]
@@ -66,8 +70,21 @@
          :let [ent (crux/entity (db) e)]]
      [(str e) m (count (::spin/representations ent))])))
 
+(defn slurp-file-as-bytes [f]
+  (let [f (io/file f)
+        size (.length f)
+        bytes (byte-array size)]
+    (.readFully (DataInputStream. (FileInputStream. f)) bytes)
+    bytes))
 
-(defn init-db [admin-password]
+(defn init-db [#_admin-password]
+  (println "Initializing Site Database")
 
-
-  )
+  (put
+   {:crux.db/id "/css/styles.css"
+    ::spin/methods #{:get :head :option}
+    ::spin/representations
+    [(let [bytes (slurp-file-as-bytes "style/target/styles.css")]
+       {::spin/content-type "text/css"
+        ::spin/content-length (count bytes)
+        ::spin/bytes bytes})]}))
