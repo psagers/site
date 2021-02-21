@@ -89,13 +89,14 @@
       (:crux.db/id resource))))))
 
 (defn GET [request resource date selected-representation db authorization subject]
-  (let [representation-metadata-headers (response/representation-metadata-headers selected-representation)]
+  (let [representation-metadata-headers
+        (response/representation-metadata-headers selected-representation)]
 
     (spin/evaluate-preconditions! request resource representation-metadata-headers date)
 
     ;; This is naïve, some representations won't just have bytes ready, they'll
     ;; need to be generated somehow
-    (let [{::spin/keys [payload-header-fields bytes bytes-generator content charset]} selected-representation
+    (let [{::spin/keys [bytes bytes-generator content charset]} selected-representation
           {::keys [path-item-object]} resource
 
           body (cond
@@ -107,7 +108,7 @@
       (spin/response
        200
        representation-metadata-headers
-       (response/payload-headers payload-header-fields body)
+       (response/payload-headers selected-representation body)
        request
        nil
        date
