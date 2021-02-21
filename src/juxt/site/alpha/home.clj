@@ -128,19 +128,24 @@
   ;; A default page (if one doesn't exist)
   (.getBytes
    (hp/html5
-    [:h2 "Welcome to site"]
+
     (if-let [username (::pass/username subject)]
       (let [user (crux/entity db (::pass/user subject))]
-        [:div
-         [:p "You are logged in as " username]
+        (list
+         [:h2 "Welcome to site"]
+         [:div
+          [:p "You are logged in as " username]
 
-         [:p "TODO: Show auth method, if cookie, then allow to logout"]
+          [:p "TODO: Show auth method, if cookie, then allow to logout"]
 
-         [:p [:a {:href (format "/~%s/" username)} "My page"]]])
+          [:p [:a {:href (format "/~%s/" username)} "My page"]]]))
 
       ;; Otherwise let them login
-      [:div
+
+      (slurp "style/examples/login.html")
+      #_[:div
        [:form {:method "POST" :action "/_site/login"}
+        (slurp "")
         [:div
          [:label "Username"]
          [:input {:style "margin: 4pt" :name "user" :type "text"}]]

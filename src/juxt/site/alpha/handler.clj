@@ -24,7 +24,8 @@
    [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
    [juxt.spin.alpha :as spin]
    [juxt.spin.alpha.auth :as spin.auth]
-   [juxt.spin.alpha.representation :as spin.representation]))
+   [juxt.spin.alpha.representation :as spin.representation]
+   [juxt.reap.alpha.ring :as reap.ring]))
 
 ;; This deviates from Spin, but we want to upgrade Spin accordingly in the near
 ;; future. When that is done, this version can be removed and the function in
@@ -49,6 +50,8 @@
         ;; Check for a 406 Not Acceptable
         _ (when (contains? #{:get :head} (:request-method request))
             (spin/check-not-acceptable! selected-representation))]
+
+    (log/trace "Selected representation" (pr-str selected-representation))
 
     ;; Pin the vary header onto the selected representation's
     ;; metadata

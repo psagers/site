@@ -87,4 +87,14 @@
     [(let [bytes (slurp-file-as-bytes "style/target/styles.css")]
        {::spin/content-type "text/css"
         ::spin/content-length (count bytes)
+        ::spin/bytes bytes})
+     (let [bytes (slurp-file-as-bytes "style/target/styles.css.gz")]
+       {::spin/content-type "text/css"
+        ::spin/content-encoding "gzip"
+        ::spin/content-length (count bytes)
+        ::spin/bytes bytes})
+     (let [bytes (slurp-file-as-bytes "style/target/styles.css.br")]
+       {::spin/content-type "text/css"
+        ::spin/content-encoding "br"
+        ::spin/content-length (count bytes)
         ::spin/bytes bytes})]}))
