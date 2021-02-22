@@ -78,9 +78,6 @@
   (::http/representations resource))
 
 (defn GET [request resource date selected-representation db authorization subject]
-
-  (log/trace "Selected representation's keys" (keys selected-representation))
-
   (spin/evaluate-preconditions! request resource selected-representation date)
   (let [{::http/keys [body content charset]} selected-representation
         {::site/keys [body-generator]} selected-representation
@@ -92,9 +89,6 @@
                            request resource selected-representation db authorization subject)]
                  (cond-> body
                    (string? body) (.getBytes (or charset "UTF-8")))))]
-
-    (log/debug "content-length is" (count body))
-
     (spin/response
      200
      selected-representation
@@ -281,10 +275,13 @@
          ::spin/resource resource})))))
 
 (defn handler [{db ::crux-db crux-node ::crux-node :as request}]
+  (log/debug "DB is" (pr-str db))
+
   (spin/check-method-not-implemented!
    request
    #{:get :head :post :put :delete :options
      :mkcol :propfind})
+
 
   (let [
         ;; Having extracted our Crux database and node, we remove from the
@@ -305,9 +302,7 @@
 
         _ (log/debug
            "Result of locate-resource"
-           (pr-str (select-keys
-                    resource
-                    [:crux.db/id ::http/methods ::http/representations ::site/resource-provider])))
+           (pr-str (update resource ::http/representations count)))
 
         date (new java.util.Date)
 
@@ -353,11 +348,7 @@
                 "Unauthorized"
                 {::spin/response
                  {:status 401
-                  :headers
-                  {"www-authenticate"
-                   (spin.auth/www-authenticate
-                    [{::spin/authentication-scheme "Basic"
-                      ::spin/realm "Users"}])}
+                  :headers {}
                   :body "Unauthorized\r\n"}}))))
 
         allow-methods (set/union

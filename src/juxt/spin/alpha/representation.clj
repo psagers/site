@@ -10,19 +10,11 @@
    [juxt.reap.alpha.ring :refer [headers->decoded-preferences]]
    [juxt.spin.alpha :as spin]))
 
-(defn make-byte-array-representation [bytes representation-metadata]
-  (let [content-type (get representation-metadata "content-type")]
-    {::spin/representation-metadata
-     (merge
-      {"etag"
-       (format
-        "\"%s\""     ; etags MUST be wrapped in DQUOTEs
-        (hash        ; Clojure's hash function will do, but we could use another
-         {:content (vec bytes)
-          :content-type content-type}))}
-      representation-metadata)
-     ::spin/payload-header-fields {"content-length" (str (count bytes))}
-     ::spin/bytes bytes}))
+(alias 'http (create-ns 'juxt.http.alpha))
+
+(defn make-byte-array-representation [bytes representation]
+  (assoc representation ::http/body bytes)
+  )
 
 (defn make-char-sequence-representation
   [char-sequence representation-metadata]
@@ -32,16 +24,7 @@
         (get-in
          (reap/content-type content-type)
          [:juxt.reap.alpha.rfc7231/parameter-map "charset"] "utf-8")]
-    {::spin/representation-metadata
-     (merge
-      {"etag"
-       (format
-        "\"%s\""     ; etags MUST be wrapped in DQUOTEs
-        (hash        ; Clojure's hash function will do, but we could use another
-         {:content char-sequence
-          :content-type content-type}))}
-      representation-metadata)
-     ::spin/payload-header-fields
+    {::spin/payload-header-fields
      {"content-length" (str (count (.getBytes char-sequence charset)))}
      ::spin/bytes (.getBytes char-sequence charset)}))
 
@@ -95,17 +78,18 @@
 
     (let [decoded-representation
           (decode-maybe
-           {:juxt.pick.alpha/representation-metadata
-            (select-keys
-             (merge
-              ;; See Section 3.1.1.5, RFC 7231 as to why content-type defaults
-              ;; to application/octet-stream
-              {"content-type" "application/octet-stream"
-               "content-encoding" "identity"}
-              (:headers request))
-             ["content-type"
-              "content-encoding"
-              "content-language"])})]
+
+           ;; See Section 3.1.1.5, RFC 7231 as to why content-type defaults
+           ;; to application/octet-stream
+           (cond-> {::http/content-type "application/octet-stream"}
+             (contains? (:headers request) "content-type")
+             (assoc ::http/content-type (get-in request [:headers "content-type"]))
+
+             (contains? (:headers request) "content-encoding")
+             (assoc ::http/content-encoding (get-in request [:headers "content-encoding"]))
+
+             (contains? (:headers request) "content-language")
+             (assoc ::http/content-language (get-in request [:headers "content-language"]))))]
 
       (when-let [acceptable (::spin/acceptable resource)]
         (let [prefs (headers->decoded-preferences acceptable)
@@ -188,27 +172,18 @@
                  {:status 415
                   :body "Unsupported Media Type\r\n"}}))))))
 
-      (let [bytes (byte-array content-length)]
-
-        (with-open [in (:body request)]
-          (.readFully (java.io.DataInputStream. in) bytes))
-
-        (let [content-type (:juxt.reap.alpha.rfc7231/content-type decoded-representation)
-              new-representation-metadata
-              (merge
-               (select-keys
-                (:headers request)
-                ["content-type" "content-language" "content-encoding"])
-               {"last-modified" (format-http-date date)})]
+      (with-open [in (:body request)]
+        (let [bytes (.readNBytes in content-length)
+              content-type (:juxt.reap.alpha.rfc7231/content-type decoded-representation)]
 
           (cond
             (= (:juxt.reap.alpha.rfc7231/type content-type) "text")
             (let [charset (get-in decoded-representation [:juxt.reap.alpha.rfc7231/content-type :juxt.reap.alpha.rfc7231/parameter-map "charset"])]
-              (make-char-sequence-representation
-               (new String bytes (or charset "utf-8"))
-               new-representation-metadata))
-
+              (merge decoded-representation
+                     {::http/last-modified (format-http-date date)
+                      ::http/charset charset
+                      ::http/content (new String bytes (or charset "utf-8"))}))
             :else
-            (make-byte-array-representation
-             bytes
-             new-representation-metadata)))))))
+            (merge decoded-representation
+                   {::http/last-modified (format-http-date date)
+                    ::http/body bytes})))))))

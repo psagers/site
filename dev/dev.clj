@@ -38,7 +38,7 @@
       [:crux.tx/put m]))
    (crux/await-tx (crux-node))))
 
-(defn d [id]
+(defn rm [id]
   (->>
    (crux/submit-tx
     (crux-node)
@@ -48,7 +48,7 @@
 (defn q [query]
   (crux/q (db) query))
 
-(defn es []
+(defn ls []
   (sort-by
    str
    (map first
@@ -58,7 +58,7 @@
   (sort-by
    str
    (map first
-        (q '{:find [(eql/project e [*])] :where [[e :type "Rule"]]}))))
+        (q '{:find [(eql/project e [*])] :where [[e ::site/type "Rule"]]}))))
 
 (defn uuid [s]
   (cond
@@ -85,11 +85,49 @@
 
 (defn slurp-file-as-bytes [f]
   (let [f (io/file f)]
-    (.readAllBytes (FileInputStream. f) (.length f))))
+    (.readAllBytes (FileInputStream. f))))
 
 (defn init-db [webmaster-password]
   (println "Initializing Site Database")
 
+  ;; Create the webmaster.
+  (put
+   {:crux.db/id "https://home.juxt.site/_site/users/webmaster"
+    ::http/methods #{:get :head :options}
+    ::http/representations []
+    ::pass/password-hash!! (password/encrypt webmaster-password)}
+
+   ;; Add rule that allows the webmaster to do everything, at least during the
+   ;; bootstrap phase of a deployment. This can be deleted after the initial
+   ;; users/roles have been populated, if required.
+   {:crux.db/id "https://home.juxt.site/_site/rules/webmaster-allow-read-all"
+    :description "The webmaster has read access to everything"
+    ::site/type "Rule"
+    ::pass/target '[[subject :juxt.pass.alpha/username "webmaster"]]
+    ::pass/effect ::pass/allow
+    ::pass/allow-methods #{:get :head :options}})
+
+  ;; Resources classified as PUBLIC should be readable (but not writable). We'll
+  ;; need at least one PUBLIC resource to provide a login page.
+  (put
+   {:crux.db/id "https://home.juxt.site/_site/rules/public-resources"
+    ::site/type "Rule"
+    ::site/description "PUBLIC resources are accessible to GET"
+    ::pass/target '[[request :request-method #{:get :head :options}]
+                    [resource ::pass/classification "PUBLIC"]]
+    ::pass/effect ::pass/allow})
+
+  ;; Add the home page, with classification of PUBLIC. If you're not logged in,
+  ;; you'll get a login form.
+  (put
+   {:crux.db/id "https://home.juxt.site/index.html"
+    ::http/methods #{:get :head :options}
+    ::http/representations
+    [{::http/content-type "text/html;charset=utf-8"
+      ::site/body-generator :juxt.site.alpha.home/home-page}]
+    ::pass/classification "PUBLIC"})
+
+  ;; The login form will require some additional PUBLIC resources
   (apply
    put
    (for [f ["juxt-logo-on-white.svg" "juxt-logo-on-black.svg"]]
@@ -102,6 +140,7 @@
           ::http/body bytes})]
       ::pass/classification "PUBLIC"}))
 
+  ;; The login form is styled with Tailwind CSS
   (put
    {:crux.db/id "https://home.juxt.site/css/tailwind/styles.css"
     ::http/methods #{:get :head :option}
@@ -122,24 +161,32 @@
         ::http/body bytes})]
     ::pass/classification "PUBLIC"})
 
+  ;; A login post handler will also be required, along with a special rule to
+  ;; allow anyone to POST to it.
   (put
-   {:crux.db/id "https://home.juxt.site/_site/pass/rules/accessible-public-resources"
+   {:crux.db/id "https://home.juxt.site/_site/login"
+    ::http/methods #{:post}
+    ::http/acceptable "application/x-www-form-urlencoded"
+    ::site/purpose ::site/post-login-credentials
+    ::pass/expires-in (* 3600 24 30)}
+
+   {:crux.db/id "https://home.juxt.site/_site/rules/anyone-can-post-login-credentials"
     ::site/type "Rule"
-    ::site/description "PUBLIC resources are accessible to GET"
-    ::pass/target '[[request :request-method #{:get :head :options}]
-                    [resource ::pass/classification "PUBLIC"]]
+    ::site/description "The login POST handler must be accessible by all"
+    ::pass/target '[[request :request-method #{:post}]
+                    [resource ::site/purpose ::site/post-login-credentials]]
     ::pass/effect ::pass/allow})
 
+  ;; Redirect from / to /index.html
   (put
    {:crux.db/id "https://home.juxt.site/"
-    ::http/redirect "/index.html"}
+    ::http/redirect "/index.html"})
 
-   {:crux.db/id "https://home.juxt.site/index.html"
-    ::http/methods #{:get :head :options}
-    ::http/representations
-    [{::http/content-type "text/html;charset=utf-8"
-      ::site/body-generator :juxt.site.alpha.home/home-page}]
-    ::pass/classification "PUBLIC"})
+
+
+
+
+
 
   #_(put
      {:crux.db/id "https://home.juxt.site/_site/pass/rules/users-can-post-their-own-home-pages"
@@ -158,40 +205,10 @@
         ::http/content-length (count bytes)
         ::http/body bytes}]}))
 
-  #_(put
-     ;; The webmaster user
-     {:crux.db/id "https://home.juxt.site/_site/users/site/webmaster"
-      ::http/methods #{:get :head :options}
-      ::http/representations []
-      ::pass/password-hash!! (password/encrypt webmaster-password)}
-
-     ;; A rule that allows the webmaster to do everything, at least during the
-     ;; bootstrap phase of a deployment. This can be deleted after the initial
-     ;; users/roles have been populated, if required.
-     {:crux.db/id "https://home.juxt.site/_site/pass/rules/webmaster"
-      :description "The webmaster has read access to everything"
-      :type "Rule"
-      ::pass/target '[[subject :juxt.pass.alpha/username "webmaster"]]
-      ::pass/effect ::pass/allow
-      ::pass/allow-methods #{:get :head :options}})
-
-
 
 
   ;; Authentication resources
-  #_(put
-     {:crux.db/id "https://home.juxt.site/_site/login"
-      ::http/methods #{:post}
-      ::purpose ::login
-      ::http/acceptable "application/x-www-form-urlencoded"
-      ::pass/expires-in (* 3600 24 30)}
 
-     {:crux.db/id "https://home.juxt.site/_site/pass/rules/login-is-public"
-      :type "Rule"
-      :description "The login POST handler must be accessible by all"
-      ::pass/target '[[request :request-method #{:post}]
-                      [resource ::purpose ::login]]
-      ::pass/effect ::pass/allow})
 
   #_(let [token-endpoint "https://home.juxt.site/_site/token"
           grant-types #{"client_credentials"}]
