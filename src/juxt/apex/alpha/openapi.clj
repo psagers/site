@@ -50,8 +50,6 @@
    (let [abs-request-path (:uri request)
          openapis (crux/q db '{:find [openapi-eid openapi]
                                :where [[openapi-eid :juxt.apex.alpha/openapi openapi]]})]
-     (log/trace "abs-request-path is" abs-request-path)
-     (log/trace "count apis is" (count openapis))
      (when-let [{:keys [openapi-ent openapi rel-request-path]}
                 (some
                  (fn [[openapi-eid openapi]]
@@ -59,7 +57,6 @@
                     (fn [server]
                       (let [server-url (get server "url")]
                         (when (.startsWith abs-request-path server-url)
-                          (log/trace "matched!")
                           {:openapi-eid openapi-eid
                            :openapi openapi
                            :rel-request-path (subs abs-request-path (count server-url))})))
@@ -74,7 +71,6 @@
          (or
           (some
            (fn [[path path-item-object]]
-             (log/trace "Checking path" path)
              (let [path-params
                    (->>
                     (or
@@ -97,7 +93,6 @@
                    matcher (re-matcher (re-pattern pattern) rel-request-path)]
 
                (when (.find matcher)
-                 (log/trace "Found a match for path" path)
 
                  (let [path-params
                        (into
@@ -105,17 +100,9 @@
                         (for [param path-params
                               :let [param-name (get param "name")]]
                           [param-name (.group matcher param-name)]))
-
                        operation-object (get path-item-object (name (:request-method request)))
-
-
-                       _ (log/trace ">>> " operation-object)
-
-                       _ (log/trace ">>> " (get-in operation-object ["requestBody" "content"]))
-
                        acceptable (str/join ", " (map first (get-in operation-object ["requestBody" "content"])))]
 
-                   (log/trace "Returning OpenAPI resource")
                    (cond->
                        {::site/resource-provider ::openapi-path
                         ::apex/openid-path path
@@ -140,7 +127,7 @@
                         (for [[media-type media-type-object]
                               (fast-get-in path-item-object ["get" "responses" "200" "content"])]
                           {::http/content-type media-type
-                           ::http/bytes-generator ::entity-bytes-generator})
+                           ::site/body-generator ::entity-bytes-generator})
 
                         ;; TODO: Merge in any properties of a resource that is in
                         ;; Crux - e.g. if this resource is a collection, what type
@@ -184,11 +171,12 @@
                 )))
      {} input)))
 
-;; Possibly promote up into site - by default we output the resource state, but
-;; there may be a better rendering of collections, which can be inferred from
-;; the schema being an array and use the items subschema. We can also use the
-;; resource state as a
+;; By default we output the resource state, but there may be a better rendering
+;; of collections, which can be inferred from the schema being an array and use
+;; the items subschema.
 (defmethod generate-representation-body ::entity-bytes-generator [request resource representation db authorization subject]
+
+  (log/trace "entity-bytes-generator")
 
   (let [param-defs
         (get-in resource [:juxt.apex.alpha/operation "parameters"])
@@ -385,8 +373,6 @@
 
 (defn put-json-representation
   [request resource received-representation date crux-node]
-
-  (log/trace "put-json-representation:" received-representation)
 
   (let [last-modified date
         etag (format "\"%s\"" (-> received-representation ::http/body util/hexdigest (subs 0 32)))

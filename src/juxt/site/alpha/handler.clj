@@ -78,6 +78,7 @@
   (::http/representations resource))
 
 (defn GET [request resource date selected-representation db authorization subject]
+  (log/trace "GET")
   #_(spin/evaluate-preconditions! request resource selected-representation date)
   (let [{::http/keys [body content charset]} selected-representation
         {::site/keys [body-generator]} selected-representation
