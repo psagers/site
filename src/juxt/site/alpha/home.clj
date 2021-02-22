@@ -139,36 +139,6 @@
 
          [:p [:a {:href (format "/~%s/" username)} "My page"]]]))
 
-     ;; Otherwise let them login
-     [:body {:class "flex h-screen bg-white"}
-      [:div {:class "max-w-xs w-full m-auto bg-black rounded p-5"}
-       [:header
-        [:img {:class "w-20 mx-auto mb-5" :src "https://juxt.land/logo.svg"}]]
-       [:form {:method "POST" :action "/_site/login"}
-        [:div
-         [:label {:class "block mb-2 text-yellow-500" :for "user"} "Username"]
-         [:input {:name "user" :type "text"
-                  :class "w-full p-2 mb-6 font-mono bg-gray-300 text-black border-b-2 border-yellow-500 outline-none focus:bg-white"}]]
-
-        [:div
-         [:label {:class "block mb-2 text-yellow-500" :for "password"} "Password"]
-         [:input {:name "password" :type "password"
-                  :class "w-full p-2 mb-6 font-mono bg-gray-300 text-black border-b-2 border-yellow-500 outline-none focus:bg-white"}]]
-
-        [:div
-         [:input {:type "submit" :value "Login" :class "w-full bg-yellow-500 hover:bg-yellow-800 text-white font-bold py-2 px-4 mb-6 rounded"}]]]]]
-
-     #_[:div
-        [:form {:method "POST" :action "/_site/login"}
-         (slurp "")
-         [:div
-          [:label "Username"]
-          [:input {:style "margin: 4pt" :name "user" :type "text"}]]
-         [:div
-          [:label "Password"]
-          [:input {:style "margin: 4pt" :name "password" :type "password"}]]
-         [:div
-          [:input {:style "margin: 4pt"
-                   :type "submit"
-                   :value "Login"}]]]])
-   ))
+     ;; Otherwise let them login - this should be some static html or template
+     ;; in the database
+     (slurp "resources/login.html"))))

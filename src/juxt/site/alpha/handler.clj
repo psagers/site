@@ -26,6 +26,7 @@
    [juxt.spin.alpha.representation :as spin.representation]))
 
 (alias 'http (create-ns 'juxt.http.alpha))
+(alias 'pick (create-ns 'juxt.pick.alpha))
 
 ;; This deviates from Spin, but we want to upgrade Spin accordingly in the near
 ;; future. When that is done, this version can be removed and the function in
@@ -33,30 +34,22 @@
 (defn negotiate-representation [request current-representations]
   ;; Negotiate the best representation, determining the vary
   ;; header.
-  (let [{selected-representation :juxt.pick.alpha/representation
-         vary :juxt.pick.alpha/vary}
+  (log/debug "current-representations" current-representations)
+
+  (let [{selected-representation ::pick/representation
+         vary ::pick/vary}
         (when (seq current-representations)
-          ;; Call into pick which does the actual negotiation for us.
-          (pick
-           request
-           (for [r current-representations]
-             (assoc r :juxt.pick.alpha/representation-metadata
-                    (-> {}
-                        (assoc-when-some "content-type" (::spin/content-type r))
-                        (assoc-when-some "content-encoding" (::spin/content-encoding r))
-                        (assoc-when-some "content-language" (::spin/content-language r)))))
-           {:juxt.pick.alpha/vary? true}))
+          (pick request current-representations {::pick/vary? true}))]
 
-        ;; Check for a 406 Not Acceptable
-        _ (when (contains? #{:get :head} (:request-method request))
-            (spin/check-not-acceptable! selected-representation))]
+    (when (contains? #{:get :head} (:request-method request))
+      (spin/check-not-acceptable! selected-representation))
 
-    (log/trace "Selected representation" (pr-str selected-representation))
+    (log/debug "result of negotiate-representation" selected-representation)
 
     ;; Pin the vary header onto the selected representation's
     ;; metadata
     (cond-> selected-representation
-      (not-empty vary) (assoc ::spin/vary (str/join ", " vary)))))
+      (not-empty vary) (assoc ::http/vary (str/join ", " vary)))))
 
 (defn uri
   "Return the full URI of the request."
@@ -85,6 +78,9 @@
   (::http/representations resource))
 
 (defn GET [request resource date selected-representation db authorization subject]
+
+  (log/trace "Selected representation's keys" (keys selected-representation))
+
   (spin/evaluate-preconditions! request resource selected-representation date)
   (let [{::http/keys [body content charset]} selected-representation
         {::site/keys [body-generator]} selected-representation
@@ -96,6 +92,9 @@
                            request resource selected-representation db authorization subject)]
                  (cond-> body
                    (string? body) (.getBytes (or charset "UTF-8")))))]
+
+    (log/debug "content-length is" (count body))
+
     (spin/response
      200
      selected-representation

@@ -19,6 +19,8 @@
 ;; Deprecated
 ;;(alias 'spin (create-ns 'juxt.spin.alpha))
 
+(set! *print-length* 10)
+
 (defn crux-node []
   (:juxt.site.alpha.db/crux-node system))
 
@@ -93,24 +95,37 @@
 (defn init-db [webmaster-password]
   (println "Initializing Site Database")
 
-  #_(put
-     {:crux.db/id "https://home.juxt.site/css/styles.css"
+  (apply
+   put
+   (for [f ["juxt-logo-on-white.svg" "juxt-logo-on-black.svg"]]
+     {:crux.db/id (str "https://home.juxt.site/" f)
       ::http/methods #{:get :head :option}
       ::http/representations
-      [(let [bytes (slurp-file-as-bytes "style/target/styles.css")]
-         {::http/content-type "text/css"
+      [(let [bytes (slurp-file-as-bytes (str "resources/" f))]
+         {::http/content-type "image/svg+xml"
           ::http/content-length (count bytes)
-          ::http/body bytes})
-       (let [bytes (slurp-file-as-bytes "style/target/styles.css.gz")]
-         {::http/content-type "text/css"
-          ::http/content-encoding "gzip"
-          ::http/content-length (count bytes)
-          ::http/body bytes})
-       (let [bytes (slurp-file-as-bytes "style/target/styles.css.br")]
-         {::http/content-type "text/css"
-          ::http/content-encoding "br"
-          ::http/content-length (count bytes)
-          ::http/body bytes})]})
+          ::http/body bytes})]
+      ::pass/classification "PUBLIC"}))
+
+  (put
+   {:crux.db/id "https://home.juxt.site/css/tailwind/styles.css"
+    ::http/methods #{:get :head :option}
+    ::http/representations
+    [(let [bytes (slurp-file-as-bytes "style/target/styles.css")]
+       {::http/content-type "text/css"
+        ::http/content-length (count bytes)
+        ::http/body bytes})
+     (let [bytes (slurp-file-as-bytes "style/target/styles.css.gz")]
+       {::http/content-type "text/css"
+        ::http/content-encoding "gzip"
+        ::http/content-length (count bytes)
+        ::http/body bytes})
+     (let [bytes (slurp-file-as-bytes "style/target/styles.css.br")]
+       {::http/content-type "text/css"
+        ::http/content-encoding "br"
+        ::http/content-length (count bytes)
+        ::http/body bytes})]
+    ::pass/classification "PUBLIC"})
 
   (put
    {:crux.db/id "https://home.juxt.site/_site/pass/rules/accessible-public-resources"
