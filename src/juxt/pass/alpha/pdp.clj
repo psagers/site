@@ -10,9 +10,7 @@
    [integrant.core :as ig]
    [juxt.pass.alpha :as pass]
    [juxt.site.alpha.response :as response]
-   [juxt.site.alpha.entity :as entity]
-   [juxt.site.alpha.util :refer [hexdigest]]
-   [juxt.spin.alpha :as spin]))
+   [juxt.site.alpha.util :refer [hexdigest]]))
 
 ;; PDP (Policy Decision Point)
 
@@ -104,36 +102,3 @@
       (cond-> query
         ;;(assoc :in '[context])
         combined-limiting-clauses (update :where (comp vec concat) combined-limiting-clauses)))))
-
-(defmethod ig/init-key ::resources [_ {:keys [crux-node]}]
-  (println "Adding built-in users/rules")
-  (try
-    (crux/submit-tx
-     crux-node
-
-     (concat
-      ;; The webmaster user - in the future, the password will be provided when
-      ;; the Crux instance is provisioned.
-      (entity/user-entity "webmaster" "FunkyForest")
-
-      ;; A rule that allows the webmaster to do everything, at least during the
-      ;; bootstrap phase of a deployment. This can be deleted after the initial
-      ;; users/roles have been populated, if required.
-      [[:crux.tx/put
-        {:crux.db/id "/_site/pass/rules/webmaster"
-         :description "The webmaster has read access to everything"
-         :type "Rule"
-         ::pass/target '[[subject :juxt.pass.alpha/username "webmaster"]]
-         ::pass/effect ::pass/allow
-         ::pass/allow-methods #{:get :head :options}}]]
-
-      [[:crux.tx/put
-        {:crux.db/id "/_site/pass/rules/accessible-public-resources"
-         :type "Rule"
-         :description "PUBLIC resources are accessible to GET"
-         ::pass/target '[[request :request-method #{:get :head :options}]
-                         [resource ::pass/classification "PUBLIC"]]
-         ::pass/effect ::pass/allow}]]))
-
-    (catch Exception e
-      (prn e))))

@@ -24,8 +24,7 @@
    [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
    [juxt.spin.alpha :as spin]
    [juxt.spin.alpha.auth :as spin.auth]
-   [juxt.spin.alpha.representation :as spin.representation]
-   [juxt.reap.alpha.ring :as reap.ring]))
+   [juxt.spin.alpha.representation :as spin.representation]))
 
 ;; This deviates from Spin, but we want to upgrade Spin accordingly in the near
 ;; future. When that is done, this version can be removed and the function in
