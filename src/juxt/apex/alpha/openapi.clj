@@ -11,7 +11,6 @@
    [hiccup.page :as hp]
    [json-html.core :refer [edn->html]]
    [jsonista.core :as json]
-   [juxt.apex.alpha :as apex]
    [juxt.apex.alpha.parameters :refer [extract-params-from-request]]
    [juxt.jinx.alpha :as jinx]
    [juxt.jinx.alpha.api :as jinx.api]
@@ -27,6 +26,7 @@
    [selmer.util :refer [*custom-resource-path*]]))
 
 (alias 'http (create-ns 'juxt.http.alpha))
+(alias 'apex (create-ns 'juxt.apex.alpha))
 
 ;; TODO: Restrict where openapis can be PUT
 (defn locate-resource [request db]
@@ -88,7 +88,7 @@
                    ;; We have to terminate with a 'end of line' otherwise we
                    ;; match too eagerly. So if we had /users and /users/{id},
                    ;; then '/users/foo' might match /users.
-                   pattern (str pattern "$")
+                   pattern (str "^" pattern "$")
 
                    matcher (re-matcher (re-pattern pattern) rel-request-path)]
 
@@ -221,7 +221,7 @@
       (-> resource-state
           (json/write-value-as-string (json/object-mapper {:pretty true}))
           (str "\r\n")
-          (.getBytes "utf-8"))
+          (.getBytes "UTF-8"))
 
       "text/html;charset=utf-8"
       (let [config (get-in resource [:juxt.apex.alpha/operation "responses" "200" "content" (::http/content-type representation)])
@@ -303,7 +303,7 @@
 
           [:h3 "Resource state"]
           [:pre (with-out-str (pprint resource-state))])
-         (.getBytes "utf-8"))))))
+         (.getBytes "UTF-8"))))))
 
 (defmethod generate-representation-body ::api-console-generator [request resource representation db authorization subject]
   (let [cell-attrs {:style "border: 1px solid #888; padding: 4pt; text-align: left"}
@@ -343,29 +343,31 @@
                [:a {:href (format "/_site/swagger-ui/index.html?url=%s" uri)} uri]]])]])
         (list
          [:p "These are no APIs loaded."])))
-     (.getBytes "utf-8"))))
+     (.getBytes "UTF-8"))))
 
 (defn put-openapi [request resource openapi-json-representation date crux-node]
 
-  (let [uri (:uri request)
-        openapi (json/read-value (java.io.ByteArrayInputStream. (::http/bytes openapi-json-representation)))
-        etag (format "\"%s\"" (subs (util/hexdigest (.getBytes (pr-str openapi) "utf-8")) 0 32))]
-    (crux/submit-tx
-     crux-node
-     [
-      [:crux.tx/put
-       {:crux.db/id uri
+  (let [uri (str "https://home.juxt.site" (:uri request))
+        openapi (json/read-value (java.io.ByteArrayInputStream. (::http/body openapi-json-representation)))
+        etag (format "\"%s\"" (subs (util/hexdigest (.getBytes (pr-str openapi) "UTF-8")) 0 32))]
+    (->>
+     (crux/submit-tx
+      crux-node
+      [
+       [:crux.tx/put
+        {:crux.db/id uri
 
-        ;; Resource configuration
-        ::http/methods #{:get :head :put :options}
-        ::http/representations
-        [(assoc
-          openapi-json-representation
-          ::http/etag etag
-          ::http/last-modified date)]
+         ;; Resource configuration
+         ::http/methods #{:get :head :put :options}
+         ::http/representations
+         [(assoc
+           openapi-json-representation
+           ::http/etag etag
+           ::http/last-modified date)]
 
-        ;; Resource state
-        ::apex/openapi openapi}]])
+         ;; Resource state
+         ::apex/openapi openapi}]])
+     (crux/await-tx crux-node))
 
     (spin/response
      (if (zero? (count (::http/representations resource))) 201 204)
@@ -416,9 +418,11 @@
       ;; Since this resource is 'managed' by the locate-resource in this ns, we
       ;; don't have to worry about http attributes - these will be provided by
       ;; the locate-resource function. We just need the resource state here.
-      (crux/submit-tx
-       crux-node
-       [[:crux.tx/put (assoc instance :crux.db/id id)]])
+      (->>
+       (crux/submit-tx
+        crux-node
+        [[:crux.tx/put (assoc instance :crux.db/id id)]])
+       (crux/await-tx crux-node))
 
       (spin/response
        (if (zero? (count (::http/representations resource))) 201 204)

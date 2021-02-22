@@ -25,7 +25,7 @@
     :responses
     {200 {:crux/query
           {:find [e]
-           :where [[e :type t]]
+           :where [[e :juxt.site.alpha/type t]]
            :args [{t "Role"}]
            :limit {:in "query" :name "limit"}}
 
@@ -101,7 +101,7 @@
     {200
      {:crux/query
       {:find [e]
-       :where [[e :type t]]
+       :where [[e :juxt.site.alpha/type t]]
        :args [{t "User"}]}
 
       :content
@@ -179,7 +179,7 @@
     {200
      {:crux/query
       {:find [e]
-       :where [[e :type t]]
+       :where [[e :juxt.site.alpha/type t]]
        :args [{t "Rule"}]}
 
       :content
@@ -263,7 +263,7 @@
    {"$id" "/schemas/Typed"
     :type "object"
     :required ["type"]
-    :juxt.jinx.alpha/keyword-mappings {"type" "type"}
+    :juxt.jinx.alpha/keyword-mappings {"type" "juxt.site.alpha/type"}
     :properties
     {"type"
      {:type "string"

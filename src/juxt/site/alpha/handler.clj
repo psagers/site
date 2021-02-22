@@ -12,7 +12,6 @@
    [juxt.dave.alpha :as dave]
    [juxt.dave.alpha.methods :as dave.methods]
    [juxt.jinx.alpha.vocabularies.transformation :refer [transform-value]]
-   [juxt.pass.alpha :as pass]
    [juxt.pass.alpha.pdp :as pdp]
    [juxt.pass.alpha.authentication :as authn]
    [juxt.pick.alpha.ring :refer [pick]]
@@ -20,13 +19,13 @@
    [juxt.site.alpha :as site]
    [juxt.site.alpha.home :as home]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
-   [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
+   [juxt.site.alpha.util :refer [hexdigest]]
    [juxt.spin.alpha :as spin]
-   [juxt.spin.alpha.auth :as spin.auth]
    [juxt.spin.alpha.representation :refer [receive-representation]]))
 
 (alias 'http (create-ns 'juxt.http.alpha))
 (alias 'pick (create-ns 'juxt.pick.alpha))
+(alias 'pass (create-ns 'juxt.pass.alpha))
 
 ;; This deviates from Spin, but we want to upgrade Spin accordingly in the near
 ;; future. When that is done, this version can be removed and the function in
@@ -127,35 +126,38 @@
          {:status 404
           :body "Not Found\r\n"}})))))
 
+(defn etag [representation]
+  (format
+   "\"%s\""
+   (subs
+    (hexdigest
+     (cond
+       (::http/body representation)
+       (::http/body representation)
+       (::http/content representation)
+       (.getBytes (::http/content representation)
+                  (::http/charset representation)))) 0 32)))
+
 (defn put-static-representation
   "PUT a new representation of the target resource. All other representations are
   replaced."
-  [request resource new-representation date crux-node]
+  [request resource received-representation date crux-node]
 
-  (let [etag (format "\"%s\"" (subs (hexdigest (::http/body new-representation)) 0 32))
-        representation-metadata {::spin/etag etag
-                                 ::spin/last-modified date}]
-
-    (log/debugf "new-representation metadata is %s" (pr-str (dissoc new-representation ::spin/bytes)))
-
-    (->>
-     (crux/submit-tx
-      crux-node
-      [[:crux.tx/put
-        (assoc resource
-               :crux.db/id (:uri request)
-               ::http/representations [(merge new-representation representation-metadata)])]])
-     (crux/await-tx crux-node))
-
-    (spin/response
-     (if (zero? (count (::http/representations resource))) 201 200)
-     nil nil request nil date nil)))
+  (->>
+   (crux/submit-tx
+    crux-node
+    [[:crux.tx/put
+      (assoc resource
+             :crux.db/id (:uri request)
+             ::http/representations
+             [(assoc received-representation
+                     ::http/etag (etag received-representation)
+                     ::http/last-modified date)])]])
+   (crux/await-tx crux-node)))
 
 (defn PUT [request resource date crux-node]
   (let [received-representation (receive-representation request resource date)]
     (assert received-representation)
-
-
 
     ;; TODO: evaluate preconditions in tx fn!
     (let [decoded-content-type (reap.decoders/content-type (::http/content-type received-representation))
@@ -194,7 +196,7 @@
   (->>
    (crux/submit-tx
     crux-node
-    [[:crux.tx/delete (:uri request)]])
+    [[:crux.tx/delete (str "https://home.juxt.site" (:uri request))]])
    (crux/await-tx crux-node))
   (spin/response 204 nil nil nil date nil))
 
@@ -254,16 +256,12 @@
          ::spin/resource resource})))))
 
 (defn handler [{db ::crux-db crux-node ::crux-node :as request}]
-  (log/debug "DB is" (pr-str db))
-
   (spin/check-method-not-implemented!
    request
    #{:get :head :post :put :delete :options
      :mkcol :propfind})
 
-
-  (let [
-        ;; Having extracted our Crux database and node, we remove from the
+  (let [;; Having extracted our Crux database and node, we remove from the
         ;; request.
         request (dissoc request ::crux-db ::crux-node)
 

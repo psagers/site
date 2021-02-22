@@ -9,20 +9,24 @@
    [clojure.pprint :refer [pprint]]
    [integrant.core :as ig]
    [juxt.spin.alpha :as spin]
-   [juxt.site.alpha :as site]
-   [juxt.pass.alpha :as pass]
    [juxt.site.alpha.payload :as payload]))
+
+(alias 'http (create-ns 'juxt.http.alpha))
+(alias 'pass (create-ns 'juxt.pass.alpha))
+(alias 'site (create-ns 'juxt.site.alpha))
 
 ;; This ns is definitely optional
 
 (defmethod payload/generate-representation-body ::user-home-page
   [request resource representation db authorization subject]
-  ;;(log/trace (::pass/username subject) (::user resource))
+
+  (log/trace (::pass/username subject) (::user resource))
+
   (let [owner (crux/entity db (::owner resource))
         bookings (map first (crux/q db '{:find [(eql/project e [*])]
-                                           :where [[e :type "WorkBooking"]]}))]
+                                         :where [[e :type "WorkBooking"]]}))]
 
-    (case (::spin/content-type representation)
+    (case (::http/content-type representation)
       "text/html;charset=utf-8"
 
       (let [owner? (= (::pass/user subject) (::owner resource))
@@ -57,13 +61,13 @@
   (crux/submit-tx
    crux-node
    [[:crux.tx/put
-     {:crux.db/id (:uri request)
-      ::spin/methods #{:get :head :options}
+     {:crux.db/id (str "https://home.juxt.site" (:uri request))
       ::pass/classification "PUBLIC"
       ::owner (::pass/user subject)
-      ::spin/representations
-      [{::spin/content-type "text/html;charset=utf-8"
-        ::spin/bytes-generator ::user-home-page}]}]]))
+      ::http/methods #{:get :head :options}
+      ::http/representations
+      [{::http/content-type "text/html;charset=utf-8"
+        ::http/bytes-generator ::user-home-page}]}]]))
 
 (defmethod payload/generate-representation-body ::user-empty-home-page
   [request resource representation db authorization subject]
@@ -116,12 +120,12 @@
   (when-let [[_ owner] (re-matches #"/~(\p{Alpha}[\p{Alnum}_-]*)/" (:uri request))]
     (when-let [user (crux/entity db (format "/_site/pass/users/%s" owner))]
       {::site/resource-provider ::empty-personal-home-page
-       ::spin/methods #{:get :head :options :post}
+       ::http/methods #{:get :head :options :post}
        ::pass/classification "PUBLIC"
        ::owner (:crux.db/id user)
-       ::spin/representations
-       [{::spin/content-type "text/html;charset=utf-8"
-         ::spin/bytes-generator ::user-empty-home-page}]})))
+       ::http/representations
+       [{::http/content-type "text/html;charset=utf-8"
+         ::site/bytes-generator ::user-empty-home-page}]})))
 
 (defmethod payload/generate-representation-body ::home-page
   [request resource representation db authorization subject]

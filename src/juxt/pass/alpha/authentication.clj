@@ -6,7 +6,6 @@
    [clojure.tools.logging :as log]
    [crypto.password.bcrypt :as password]
    [crux.api :as crux]
-   [juxt.pass.alpha :as pass]
    [juxt.reap.alpha.decoders :as reap]
    [juxt.reap.alpha.rfc7235 :as rfc7235]
    [juxt.spin.alpha :as spin]
@@ -14,6 +13,7 @@
    [ring.middleware.cookies :refer [cookies-request cookies-response]]))
 
 (alias 'http (create-ns 'juxt.http.alpha))
+(alias 'pass (create-ns 'juxt.pass.alpha))
 
 (def SECURE-RANDOM (new java.security.SecureRandom))
 (def BASE64-ENCODER (java.util.Base64/getUrlEncoder))
@@ -43,9 +43,9 @@
 
   ;; Check grant_type of posted-representation
 
-  (assert (= "application/x-www-form-urlencoded" (::spin/content-type posted-representation)))
+  (assert (= "application/x-www-form-urlencoded" (::http/content-type posted-representation)))
 
-  (let [posted-body (slurp (::spin/bytes posted-representation))
+  (let [posted-body (slurp (::http/body posted-representation))
 
         params (java.net.URLDecoder/decode
                 posted-body
@@ -79,17 +79,14 @@
               (str
                (json/write-value-as-string
                 session
-
                 (json/object-mapper {:pretty true}))
-               "\r\n"))
-
-        response-representation {::spin/content-type "application/json"
-                                 ::spin/content-length (str (count body))}]
+               "\r\n"))]
     (->
      (spin/response
       200
-      response-representation
-      nil nil nil date body)
+      {::http/content-type "application/json"
+       ::http/content-length (str (count body))}
+      nil nil date body)
      (update :headers assoc "Cache-Control" "no-store"))))
 
 (defn login-response

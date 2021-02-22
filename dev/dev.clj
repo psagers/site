@@ -47,6 +47,16 @@
 (defn q [query]
   (crux/q (db) query))
 
+(defn t [t]
+  (map
+   first
+   (crux/q (db) '{:find [e] :where [[e ::site/type t]] :in [t]} t)))
+
+(defn t* [t]
+  (map
+   first
+   (crux/q (db) '{:find [e] :where [[e :type t]] :in [t]} t)))
+
 (defn ls []
   (binding [*print-length* 100]
     (sort-by
@@ -242,41 +252,47 @@
         ::http/content-length (count bytes)
         ::http/body bytes}]}))
 
-
-
   ;; Authentication resources
 
+  (let [token-endpoint "https://home.juxt.site/_site/token"
+        grant-types #{"client_credentials"}]
+    (put
+     {:crux.db/id token-endpoint
+      ::http/methods #{:post}
+      ::http/acceptable "application/x-www-form-urlencoded"
+      ::pass/expires-in 60})
 
-  #_(let [token-endpoint "https://home.juxt.site/_site/token"
-          grant-types #{"client_credentials"}]
+    (let [content
+          (str
+           (json/write-value-as-string
+            {"issuer" "https://juxt.site" ; draft
+             "token_endpoint" token-endpoint
+             "token_endpoint_auth_methods_supported" ["client_secret_basic"]
+             "grant_types_supported" (vec grant-types)}
+            (json/object-mapper
+             {:pretty true}))
+           "\r\n")]
       (put
-       {:crux.db/id token-endpoint
-        ::http/methods #{:post}
-        ::http/acceptable "application/x-www-form-urlencoded"
-        ::pass/expires-in 60})
+       {:crux.db/id "https://home.juxt.site/.well-known/openid-configuration"
 
-      (let [content
-            (str
-             (json/write-value-as-string
-              {"issuer" "https://juxt.site" ; draft
-               "token_endpoint" token-endpoint
-               "token_endpoint_auth_methods_supported" ["client_secret_basic"]
-               "grant_types_supported" (vec grant-types)}
-              (json/object-mapper
-               {:pretty true}))
-             "\r\n")]
-        (put
-         {:crux.db/id "https://home.juxt.site/.well-known/openid-configuration"
+        ;; OpenID Connect Discovery documents are publically available
+        ::pass/classification "PUBLIC"
 
-          ;; OpenID Connect Discovery documents are publically available
-          ::pass/classification "PUBLIC"
+        ::http/methods #{:get :head :options}
+        ::http/representations
+        [{::http/content-type "application/json"
+          ::http/last-modified (java.util.Date.)
+          ::http/etag (subs (util/hexdigest (.getBytes content)) 0 32)
+          ::http/content content}]})))
 
-          ::http/methods #{:get :head :options}
-          ::http/representations
-          [{::http/content-type "application/json"
-            ::http/last-modified (java.util.Date.)
-            ::http/etag (subs (hexdigest (.getBytes content)) 0 32)
-            ::http/content content}]})))
+
+  (put
+   {:crux.db/id "https://home.juxt.site/~webmaster/"
+    :juxt.site.alpha.home/owner "https://home.juxt.site/_site/users/webmaster"
+    ::http/methods #{:get :head :options}
+    ::http/representations
+    [{::http/content-type "text/html;charset=utf-8"
+      ::site/body-generator :juxt.site.alpha.home/user-home-page}]})
 
   #_(put
      {:crux.db/id "https://home.juxt.site/_site/api-console"
