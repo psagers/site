@@ -12,22 +12,6 @@
 
 (alias 'http (create-ns 'juxt.http.alpha))
 
-(defn make-byte-array-representation [bytes representation]
-  (assoc representation ::http/body bytes)
-  )
-
-(defn make-char-sequence-representation
-  [char-sequence representation-metadata]
-  (let [content-type (get representation-metadata "content-type")
-        _ (assert content-type)
-        charset
-        (get-in
-         (reap/content-type content-type)
-         [:juxt.reap.alpha.rfc7231/parameter-map "charset"] "utf-8")]
-    {::spin/payload-header-fields
-     {"content-length" (str (count (.getBytes char-sequence charset)))}
-     ::spin/bytes (.getBytes char-sequence charset)}))
-
 (defn receive-representation
   "Check and load the representation enclosed in the request message payload."
   [request resource date]
@@ -59,7 +43,7 @@
     ;; Spin protects resources from PUTs that are too large. If you need to
     ;; exceed this limitation, explicitly declare ::spin/max-content-length in
     ;; your resource.
-    (when-let [max-content-length (get resource ::spin/max-content-length (Math/pow 2 16))]
+    (when-let [max-content-length (get resource ::http/max-content-length (Math/pow 2 16))]
       (when (> content-length max-content-length)
         (throw
          (ex-info
@@ -91,7 +75,8 @@
              (contains? (:headers request) "content-language")
              (assoc ::http/content-language (get-in request [:headers "content-language"]))))]
 
-      (when-let [acceptable (::spin/acceptable resource)]
+      (when-let [acceptable (::http/acceptable resource)]
+
         (let [prefs (headers->decoded-preferences acceptable)
               request-rep (rate-representation prefs decoded-representation)]
 
@@ -171,6 +156,14 @@
                  ::spin/response
                  {:status 415
                   :body "Unsupported Media Type\r\n"}}))))))
+
+      (when (get-in request [:headers "content-range"])
+        (throw
+         (ex-info
+          "Content-Range header not allowed on a PUT request"
+          {::spin/response
+           {:status 400
+            :body "Bad Request\r\n"}})))
 
       (with-open [in (:body request)]
         (let [bytes (.readNBytes in content-length)

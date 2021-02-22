@@ -3,6 +3,7 @@
 (ns dev
   (:require
    [clojure.java.io :as io]
+   [clojure.edn :as edn]
    [clojure.string :as str]
    [crux.api :as crux]
    [crypto.password.bcrypt :as password]
@@ -16,10 +17,8 @@
 (alias 'pass (create-ns 'juxt.pass.alpha))
 (alias 'site (create-ns 'juxt.site.alpha))
 
-;; Deprecated
-;;(alias 'spin (create-ns 'juxt.spin.alpha))
-
 (set! *print-length* 10)
+(set! *print-level* 4)
 
 (defn crux-node []
   (:juxt.site.alpha.db/crux-node system))
@@ -49,10 +48,11 @@
   (crux/q (db) query))
 
 (defn ls []
-  (sort-by
-   str
-   (map first
-        (q '{:find [e] :where [[e :crux.db/id]]}))))
+  (binding [*print-length* 100]
+    (sort-by
+     str
+     (map first
+          (q '{:find [e] :where [[e :crux.db/id]]})))))
 
 (defn rules []
   (sort-by
@@ -177,16 +177,53 @@
                     [resource ::site/purpose ::site/post-login-credentials]]
     ::pass/effect ::pass/allow})
 
+  ;; After the webmaster has logged in, they may want to add new users. For
+  ;; this, they need at least need access to the Swagger UI.
+  (let [jarpath
+        (some
+         #(re-matches #".*swagger-ui.*" %)
+         (str/split (System/getProperty "java.class.path") #":"))
+        fl (io/file jarpath)
+        jar (java.util.jar.JarFile. fl)]
+    (doseq
+        [je (enumeration-seq (.entries jar))
+         :let [nm (.getRealName je)
+               [_ suffix] (re-matches #".*\.(.*)" nm)
+               size (.getSize je)
+               path (second
+                     (re-matches #"META-INF/resources/webjars/swagger-ui/[0-9.]+/(.*)"
+                                 nm))]
+         :when path
+         :let [uri (format "https://home.juxt.site/_site/swagger-ui/%s" path)]
+         ;; TODO: Do we still need this to defend against 0 size web entries?
+         :when (pos? size)]
+        (let [body (.readAllBytes (.getInputStream jar je))]
+          (put
+           {:crux.db/id uri
+            ::http/methods #{:get :head :options}
+            ::http/representations [{::http/content-type (get util/mime-types suffix "application/octet-stream")
+                                     ::http/last-modified (java.util.Date. (.getTime je))
+                                     ::http/content-length (count body)
+                                     ::http/content-location uri
+                                     ::http/body body}]}))))
+  (let [f (io/file "src/juxt/site/alpha/openapi.edn")
+        json (json/write-value-as-string (edn/read-string (slurp f)))
+        openapi (json/read-value json)
+        bytes (.getBytes json "UTF-8")]
+    (put
+     {:crux.db/id "https://home.juxt.site/_site/apis/site/openapi.json"
+      ::http/methods #{:get :head :options}
+      ::http/representations
+      [{::http/content-type "application/vnd.oai.openapi+json;version=3.0.2"
+        ::http/last-modified (java.util.Date. (.lastModified f))
+        ::http/content-length (count bytes)
+        ::http/body bytes}]
+      :juxt.apex.alpha/openapi openapi}))
+
   ;; Redirect from / to /index.html
   (put
    {:crux.db/id "https://home.juxt.site/"
     ::http/redirect "/index.html"})
-
-
-
-
-
-
 
   #_(put
      {:crux.db/id "https://home.juxt.site/_site/pass/rules/users-can-post-their-own-home-pages"
@@ -248,31 +285,7 @@
       [{::http/content-type "text/html;charset=utf-8"
         ::site/bytes-generator ::api-console-generator}]})
 
-  #_(let [jarpath
-          (some
-           #(re-matches #".*swagger-ui.*" %)
-           (str/split (System/getProperty "java.class.path") #":"))
-          fl (io/file jarpath)
-          jar (java.util.jar.JarFile. fl)]
-      (doall
-       (for [je (enumeration-seq (.entries jar))
-             :let [nm (.getRealName je)
-                   [_ suffix] (re-matches #".*\.(.*)" nm)
-                   size (.getSize je)
-                   path (second
-                         (re-matches #"META-INF/resources/webjars/swagger-ui/[0-9.]+/(.*)"
-                                     nm))]
-             :when path
-             :let [uri (format "https://home.juxt.site/_site/swagger-ui/%s" path)]
-             :when (pos? size)]
-         (put
-          {:crux.db/id uri
-           ::http/methods #{:get :head :options}
-           ::http/representations [{::http/content-type (get util/mime-types suffix "application/octet-stream")
-                                    ::http/last-modified (java.util.Date. (.getTime je))
-                                    ::http/content-length size
-                                    ::http/content-location uri
-                                    ::http/body (slurp-as-bytes (.getInputStream jar je) size)}]})))))
+  )
 
 #_[[:crux.tx/put
     {:crux.db/id "/contacts/roger.edn"

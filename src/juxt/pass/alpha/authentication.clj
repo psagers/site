@@ -23,7 +23,7 @@
     (.nextBytes SECURE-RANDOM bytes)
     (.encodeToString BASE64-ENCODER bytes)))
 
-(def sessions-by-access-token (atom {}))
+(defonce sessions-by-access-token (atom {}))
 
 (defn put-session! [k session ^java.time.Instant expiry-instant]
   (swap! sessions-by-access-token
@@ -95,17 +95,12 @@
 (defn login-response
   [resource date posted-representation db]
 
-  (log/trace "posted-representation" posted-representation)
-  (log/trace "body is" (String. (::http/body posted-representation)))
-
   ;; Check grant_type of posted-representation
   (assert (= "application/x-www-form-urlencoded" (::http/content-type posted-representation)))
 
   (let [posted-body (String. (::http/body posted-representation))
         {:strs [user password]} (form-decode posted-body)
         uid (format "https://home.juxt.site/_site/users/%s" user)]
-
-    (log/trace "uid is" uid)
 
     (or
      (when-let [e (crux/entity db uid)]
@@ -172,7 +167,7 @@
                    (re-matches
                     #"([^:]*):([^:]*)"
                     (String. (.decode (java.util.Base64/getDecoder) token68)))
-                   uid (format "/_site/pass/users/%s" user)]
+                   uid (format "https://home.juxt.site/_site/users/%s" user)]
                (when-let [e (crux/entity db uid)]
                  (when (password/check password (::pass/password-hash!! e))
                    {::pass/user uid

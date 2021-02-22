@@ -62,7 +62,7 @@
 
 (prn access-token-data)
 
-(def put-openapi-response
+#_(def put-openapi-response
   (let [openapi (edn/read-string (slurp "openapi.edn"))
         openapi.json (json/generate-string openapi)]
     (with-status-message

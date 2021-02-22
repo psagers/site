@@ -23,7 +23,7 @@
    [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
    [juxt.spin.alpha :as spin]
    [juxt.spin.alpha.auth :as spin.auth]
-   [juxt.spin.alpha.representation :as spin.representation]))
+   [juxt.spin.alpha.representation :refer [receive-representation]]))
 
 (alias 'http (create-ns 'juxt.http.alpha))
 (alias 'pick (create-ns 'juxt.pick.alpha))
@@ -71,14 +71,14 @@
    (home/locate-resource request db)
 
    {::site/resource-provider ::default-empty-resource
-    ::spin/methods #{:get :head :options}}))
+    ::http/methods #{:get :head :options}}))
 
 (defn current-representations [db resource date]
   ;; TODO: Reintroduce content-locations
   (::http/representations resource))
 
 (defn GET [request resource date selected-representation db authorization subject]
-  (spin/evaluate-preconditions! request resource selected-representation date)
+  #_(spin/evaluate-preconditions! request resource selected-representation date)
   (let [{::http/keys [body content charset]} selected-representation
         {::site/keys [body-generator]} selected-representation
         body (cond
@@ -96,20 +96,6 @@
      nil
      date
      body)))
-
-(defn receive-representation [request resource date]
-  (let [{metadata ::spin/representation-metadata
-         payload ::spin/payload-header-fields
-         :as rep}
-        (spin.representation/receive-representation request resource date)]
-    (-> rep
-        (assoc-when-some ::spin/content-type (get metadata "content-type"))
-        (assoc-when-some ::spin/content-encoding (get  metadata "content-encoding"))
-        (assoc-when-some ::spin/content-language (get  metadata "content-language"))
-        (assoc-when-some ::spin/content-length (some-> payload (get "content-length") Long/parseLong))
-        ;; TODO: content-range?
-        (dissoc ::spin/representation-metadata)
-        (dissoc ::spin/payload-header-fields))))
 
 (defn POST [request resource date crux-node db subject]
   (let [posted-representation (receive-representation request resource date)]
@@ -143,12 +129,11 @@
 (defn put-static-representation
   "PUT a new representation of the target resource. All other representations are
   replaced."
-  [request resource new-representation old-representation crux-node]
+  [request resource new-representation date crux-node]
 
-  (let [etag (format "\"%s\"" (subs (hexdigest (::spin/bytes new-representation)) 0 32))
-        now (java.util.Date.)
+  (let [etag (format "\"%s\"" (subs (hexdigest (::http/body new-representation)) 0 32))
         representation-metadata {::spin/etag etag
-                                 ::spin/last-modified now}]
+                                 ::spin/last-modified date}]
 
     (log/debugf "new-representation metadata is %s" (pr-str (dissoc new-representation ::spin/bytes)))
 
@@ -158,28 +143,21 @@
       [[:crux.tx/put
         (assoc resource
                :crux.db/id (:uri request)
-               ::spin/representations [(merge new-representation representation-metadata)])]])
+               ::http/representations [(merge new-representation representation-metadata)])]])
      (crux/await-tx crux-node))
 
     (spin/response
-     (if old-representation 200 201) nil nil request nil now nil)))
+     (if (zero? (count (::http/representations resource))) 201 200)
+     nil nil request nil date nil)))
 
-(defn PUT [request resource selected-representation date crux-node]
-  (let [new-representation (receive-representation request resource date)]
+(defn PUT [request resource date crux-node]
+  (let [received-representation (receive-representation request resource date)]
+    (assert received-representation)
 
-    (assert new-representation)
 
-    ;; TODO: Promote into spin
-    (when (get-in request [:headers "content-range"])
-      (throw
-       (ex-info
-        "Content-Range header not allowed on a PUT request"
-        {::spin/response
-         {:status 400
-          :body "Bad Request\r\n"}})))
 
     ;; TODO: evaluate preconditions in tx fn!
-    (let [decoded-content-type (reap.decoders/content-type (::spin/content-type new-representation))
+    (let [decoded-content-type (reap.decoders/content-type (::http/content-type received-representation))
           {:juxt.reap.alpha.rfc7231/keys [type subtype]} decoded-content-type]
 
       (cond
@@ -188,42 +166,42 @@
          (.equalsIgnoreCase "vnd.oai.openapi+json" subtype)
          (#{"3.0.2"} (get-in decoded-content-type [:juxt.reap.alpha.rfc7231/parameter-map "version"])))
         (openapi/put-openapi
-         request resource new-representation selected-representation crux-node)
+         request resource received-representation date crux-node)
 
         (and
          (.equalsIgnoreCase "application" type)
          (.equalsIgnoreCase "json" subtype))
         (openapi/put-json-representation
-         request resource new-representation selected-representation crux-node)
+         request resource received-representation date crux-node)
 
         (and
          (.equalsIgnoreCase "text" type)
          (.equalsIgnoreCase "html" subtype))
         (put-static-representation
-         request resource new-representation selected-representation crux-node)
+         request resource received-representation date crux-node)
 
         :else
         (throw
          (ex-info
           "Unsupported content type in request"
-          {::spin/content-type (::spin/content-type new-representation)
+          {::http/content-type (::http/content-type received-representation)
            ::spin/response
            {:status 415
             :body (.getBytes "Unsupported Media Type\r\n" "utf-8")}}))))))
 
-(defn DELETE [request resource selected-representation date crux-node]
+(defn DELETE [request resource date crux-node]
   (->>
    (crux/submit-tx
     crux-node
     [[:crux.tx/delete (:uri request)]])
    (crux/await-tx crux-node))
-  {:status 204})
+  (spin/response 204 nil nil nil date nil))
 
 (defn OPTIONS [_ resource allow-methods _ _]
   ;; TODO: Implement *
   (->
    (spin/options allow-methods)
-   (update :headers merge (::spin/options resource))))
+   (update :headers merge (::http/options resource))))
 
 (defn PROPFIND [request resource date crux-node authorization subject]
   (dave.methods/propfind request resource date crux-node authorization subject))
@@ -234,11 +212,11 @@
             [[:crux.tx/put
               {:crux.db/id (:uri request)
                ::dave/resource-type :collection
-               ::spin/methods #{:get :head :options :propfind}
-               ::spin/representations
-               [{::spin/content-type "text/html;charset=utf-8"
-                 ::spin/content "<h1>Index</h1>\r\n"}]
-               ::spin/options {"DAV" "1"}}]])]
+               ::http/methods #{:get :head :options :propfind}
+               ::http/representations
+               [{::http/content-type "text/html;charset=utf-8"
+                 ::http/content "<h1>Index</h1>\r\n"}]
+               ::http/options {"DAV" "1"}}]])]
     (crux/await-tx crux-node tx))
   {:status 201
    :headers {}
@@ -300,13 +278,17 @@
                           307)
                 :headers {"location" redirect}}})))
 
-        _ (log/debug
+        _ (log/trace
            "Result of locate-resource"
-           (pr-str (update resource ::http/representations count)))
+           (pr-str (->  resource
+                        (update ::http/representations count)
+                        (dissoc :juxt.apex.alpha/openapi))))
 
         date (new java.util.Date)
 
-        current-representations (current-representations db resource date)
+        current-representations
+        (when (contains? #{:get :head} (:request-method request))
+          (current-representations db resource date))
 
         selected-representation
         (when (seq current-representations)
@@ -369,10 +351,10 @@
       (POST request resource date crux-node db subject)
 
       :put
-      (PUT request resource selected-representation date crux-node)
+      (PUT request resource date crux-node)
 
       :delete
-      (DELETE request resource selected-representation date crux-node)
+      (DELETE request resource date crux-node)
 
       :options
       (OPTIONS request resource allow-methods date db)
