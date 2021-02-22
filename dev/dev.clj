@@ -83,14 +83,9 @@
          :let [ent (crux/entity (db) e)]]
      [(str e) m (count (::http/representations ent))])))
 
-(defn slurp-as-bytes [in len]
-  (let [bytes (byte-array len)]
-    (.readFully (DataInputStream. in) bytes)
-    bytes))
-
 (defn slurp-file-as-bytes [f]
   (let [f (io/file f)]
-    (slurp-as-bytes (FileInputStream. f) (.length f))))
+    (.readAllBytes (FileInputStream. f) (.length f))))
 
 (defn init-db [webmaster-password]
   (println "Initializing Site Database")
@@ -153,15 +148,15 @@
                       [resource ::owner user]]
       ::pass/effect ::pass/allow})
 
-  #_(put
-     (let [bytes (.readAllBytes (io/input-stream (io/resource "juxt/site/alpha/favicon.ico")))]
-       {:crux.db/id "https://home.juxt.site/favicon.ico"
-        ::pass/classification "PUBLIC"
-        ::http/methods #{:get :head :options}
-        ::http/representations
-        [{::http/content-type "image/x-icon"
-          ::http/content-length (count bytes)
-          ::http/body bytes}]}))
+  (put
+   (let [bytes (.readAllBytes (io/input-stream (io/file "resources/favicon.ico")))]
+     {:crux.db/id "https://home.juxt.site/favicon.ico"
+      ::pass/classification "PUBLIC"
+      ::http/methods #{:get :head :options}
+      ::http/representations
+      [{::http/content-type "image/x-icon"
+        ::http/content-length (count bytes)
+        ::http/body bytes}]}))
 
   #_(put
      ;; The webmaster user
