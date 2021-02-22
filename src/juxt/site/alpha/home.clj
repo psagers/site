@@ -126,35 +126,49 @@
 (defmethod payload/generate-representation-body ::home-page
   [request resource representation db authorization subject]
   ;; A default page (if one doesn't exist)
-  (.getBytes
-   (hp/html5
+  (hp/html5
 
-    (if-let [username (::pass/username subject)]
-      (let [user (crux/entity db (::pass/user subject))]
-        (list
-         [:h2 "Welcome to site"]
-         [:div
-          [:p "You are logged in as " username]
+   (if-let [username (::pass/username subject)]
+     (let [user (crux/entity db (::pass/user subject))]
+       (list
+        [:h2 "Welcome to site"]
+        [:div
+         [:p "You are logged in as " username]
 
-          [:p "TODO: Show auth method, if cookie, then allow to logout"]
+         [:p "TODO: Show auth method, if cookie, then allow to logout"]
 
-          [:p [:a {:href (format "/~%s/" username)} "My page"]]]))
+         [:p [:a {:href (format "/~%s/" username)} "My page"]]]))
 
-      ;; Otherwise let them login
-
-      (slurp "style/examples/login.html")
-      #_[:div
+     ;; Otherwise let them login
+     [:body {:class "flex h-screen bg-white"}
+      [:div {:class "max-w-xs w-full m-auto bg-black rounded p-5"}
+       [:header
+        [:img {:class "w-20 mx-auto mb-5" :src "https://juxt.land/logo.svg"}]]
        [:form {:method "POST" :action "/_site/login"}
-        (slurp "")
         [:div
-         [:label "Username"]
-         [:input {:style "margin: 4pt" :name "user" :type "text"}]]
+         [:label {:class "block mb-2 text-yellow-500" :for "user"} "Username"]
+         [:input {:name "user" :type "text"
+                  :class "w-full p-2 mb-6 font-mono bg-gray-300 text-black border-b-2 border-yellow-500 outline-none focus:bg-white"}]]
+
         [:div
-         [:label "Password"]
-         [:input {:style "margin: 4pt" :name "password" :type "password"}]]
+         [:label {:class "block mb-2 text-yellow-500" :for "password"} "Password"]
+         [:input {:name "password" :type "password"
+                  :class "w-full p-2 mb-6 font-mono bg-gray-300 text-black border-b-2 border-yellow-500 outline-none focus:bg-white"}]]
+
         [:div
-         [:input {:style "margin: 4pt"
-                  :type "submit"
-                  :value "Login"}]]]])
-    )
-   "UTF-8"))
+         [:input {:type "submit" :value "Login" :class "w-full bg-yellow-500 hover:bg-yellow-800 text-white font-bold py-2 px-4 mb-6 rounded"}]]]]]
+
+     #_[:div
+        [:form {:method "POST" :action "/_site/login"}
+         (slurp "")
+         [:div
+          [:label "Username"]
+          [:input {:style "margin: 4pt" :name "user" :type "text"}]]
+         [:div
+          [:label "Password"]
+          [:input {:style "margin: 4pt" :name "password" :type "password"}]]
+         [:div
+          [:input {:style "margin: 4pt"
+                   :type "submit"
+                   :value "Login"}]]]])
+   ))

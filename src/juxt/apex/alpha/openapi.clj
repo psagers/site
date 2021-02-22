@@ -9,7 +9,6 @@
    [clojure.walk :refer [postwalk]]
    [crux.api :as crux]
    [hiccup.page :as hp]
-   [integrant.core :as ig]
    [json-html.core :refer [edn->html]]
    [jsonista.core :as json]
    [juxt.apex.alpha :as apex]
@@ -22,7 +21,6 @@
    [juxt.site.alpha :as site]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
    [juxt.site.alpha.perf :refer [fast-get-in]]
-   [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :as util]
    [juxt.spin.alpha :as spin]
    [selmer.parser :as selmer]
@@ -438,12 +436,11 @@
 
       (spin/response
        (if old-representation 200 201)
-       (response/representation-metadata-headers
-        (merge
-         representation-metadata
-         ;; TODO: Source this from the openapi, proactively content-negotiation if
-         ;; multiple possible (for each of 200 and 201)
-         {::spin/content-type "application/json"}))
+       (merge
+        representation-metadata
+        ;; TODO: Source this from the openapi, proactively content-negotiation if
+        ;; multiple possible (for each of 200 and 201)
+        {::spin/content-type "application/json"})
        nil
        request
        nil

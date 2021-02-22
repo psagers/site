@@ -6,15 +6,10 @@
    [clojure.tools.logging :as log]
    [crypto.password.bcrypt :as password]
    [crux.api :as crux]
-   [integrant.core :as ig]
    [juxt.pass.alpha :as pass]
    [juxt.reap.alpha.decoders :as reap]
-   [juxt.reap.alpha.encoders :refer [format-http-date]]
    [juxt.reap.alpha.rfc7235 :as rfc7235]
-   [juxt.site.alpha.response :as response]
-   [juxt.site.alpha.util :refer [hexdigest]]
    [juxt.spin.alpha :as spin]
-   [juxt.spin.alpha.auth :refer [decode-authorization]]
    [ring.util.codec :refer [form-decode]]
    [ring.middleware.cookies :refer [cookies-request cookies-response]]))
 
@@ -93,7 +88,7 @@
     (->
      (spin/response
       200
-      (response/representation-metadata-headers response-representation)
+      response-representation
       nil nil nil date body)
      (update :headers assoc "Cache-Control" "no-store"))))
 

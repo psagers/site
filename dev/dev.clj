@@ -128,7 +128,7 @@
     ::http/methods #{:get :head :options}
     ::http/representations
     [{::http/content-type "text/html;charset=utf-8"
-      ::site/body-generator ::home-page}]
+      ::site/body-generator :juxt.site.alpha.home/home-page}]
     ::pass/classification "PUBLIC"})
 
   #_(put

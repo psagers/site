@@ -5,12 +5,10 @@
    [clojure.set :as set]
    [clojure.walk :refer [postwalk-replace]]
    [clojure.tools.logging :as log]
-   [jsonista.core :as json]
-   [crux.api :as crux]
-   [integrant.core :as ig]
-   [juxt.pass.alpha :as pass]
-   [juxt.site.alpha.response :as response]
-   [juxt.site.alpha.util :refer [hexdigest]]))
+   [crux.api :as crux]))
+
+(alias 'pass (create-ns 'juxt.pass.alpha))
+(alias 'site (create-ns 'juxt.site.alpha))
 
 ;; PDP (Policy Decision Point)
 
@@ -32,7 +30,7 @@
 
         rules (map first
                    (crux/q db '{:find [rule]
-                                :where [[rule :type "Rule"]]}))
+                                :where [[rule ::site/type "Rule"]]}))
 
         _  (log/debugf "Rules to match are %s" (pr-str rules))
 

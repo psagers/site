@@ -20,11 +20,12 @@
    [juxt.site.alpha :as site]
    [juxt.site.alpha.home :as home]
    [juxt.site.alpha.payload :refer [generate-representation-body]]
-   [juxt.site.alpha.response :as response]
    [juxt.site.alpha.util :refer [assoc-when-some hexdigest]]
    [juxt.spin.alpha :as spin]
    [juxt.spin.alpha.auth :as spin.auth]
    [juxt.spin.alpha.representation :as spin.representation]))
+
+(alias 'http (create-ns 'juxt.http.alpha))
 
 ;; This deviates from Spin, but we want to upgrade Spin accordingly in the near
 ;; future. When that is done, this version can be removed and the function in
@@ -57,6 +58,13 @@
     (cond-> selected-representation
       (not-empty vary) (assoc ::spin/vary (str/join ", " vary)))))
 
+(defn uri
+  "Return the full URI of the request."
+  ;; At some point we should move to the Ring 2.0 namespace which has more
+  ;; precise naming.
+  [req]
+  (str "https://home.juxt.site" (:uri req)))
+
 (defn locate-resource
   "Call each locate-resource defmethod, in a particular order, ending
   in :default."
@@ -64,7 +72,7 @@
   (or
    (openapi/locate-resource request db)
 
-   (when-let [e (crux/entity db (:uri request))]
+   (when-let [e (crux/entity db (uri request))]
      (assoc e ::site/resource-provider ::crux))
 
    (home/locate-resource request db)
@@ -73,48 +81,28 @@
     ::spin/methods #{:get :head :options}}))
 
 (defn current-representations [db resource date]
-  (or
-   ;; Strategy 1: This resource could be manufactured by locate-resource. Allow
-   ;; this to contain ::spin/representations
-   (::spin/representations resource)
-
-   ;; Strategy 2: Try looking up via 'mapping' entities in Crux
-   (seq
-    (map
-     (comp #(crux/entity db %) first)
-     (crux/q
-      db
-      '{:find [representation-id]
-        :in [uri]
-        :where [[resource ::spin/resource uri]
-                [resource ::spin/representation representation-id]]}
-      (:crux.db/id resource))))))
+  ;; TODO: Reintroduce content-locations
+  (::http/representations resource))
 
 (defn GET [request resource date selected-representation db authorization subject]
-  (let [representation-metadata-headers
-        (response/representation-metadata-headers selected-representation)]
-
-    (spin/evaluate-preconditions! request resource representation-metadata-headers date)
-
-    ;; This is naïve, some representations won't just have bytes ready, they'll
-    ;; need to be generated somehow
-    (let [{::spin/keys [bytes bytes-generator content charset]} selected-representation
-          {::keys [path-item-object]} resource
-
-          body (cond
-                 content (.getBytes content (or charset "utf-8"))
-                 bytes bytes
-                 path-item-object (.getBytes (get-in path-item-object ["get" "description"]) "utf-8")
-                 bytes-generator (generate-representation-body request resource selected-representation db authorization subject))]
-
-      (spin/response
-       200
-       representation-metadata-headers
-       (response/payload-headers selected-representation body)
-       request
-       nil
-       date
-       body))))
+  (spin/evaluate-preconditions! request resource selected-representation date)
+  (let [{::http/keys [body content charset]} selected-representation
+        {::site/keys [body-generator]} selected-representation
+        body (cond
+               content (.getBytes content (or charset "utf-8"))
+               body body
+               body-generator
+               (let [body (generate-representation-body
+                           request resource selected-representation db authorization subject)]
+                 (cond-> body
+                   (string? body) (.getBytes (or charset "UTF-8")))))]
+    (spin/response
+     200
+     selected-representation
+     request
+     nil
+     date
+     body)))
 
 (defn receive-representation [request resource date]
   (let [{metadata ::spin/representation-metadata
@@ -306,7 +294,7 @@
 
         resource (locate-resource request db)
 
-        _ (when-let [redirect (::spin/redirect resource)]
+        _ (when-let [redirect (::http/redirect resource)]
             (throw
              (ex-info
               "Redirect"
@@ -320,7 +308,7 @@
            "Result of locate-resource"
            (pr-str (select-keys
                     resource
-                    [:crux.db/id ::spin/methods ::spin/representations ::site/resource-provider])))
+                    [:crux.db/id ::http/methods ::http/representations ::site/resource-provider])))
 
         date (new java.util.Date)
 
@@ -374,7 +362,7 @@
                   :body "Unauthorized\r\n"}}))))
 
         allow-methods (set/union
-                       (::spin/methods resource)
+                       (::http/methods resource)
                        (::pass/allow-methods authorization))]
 
     (when resource
