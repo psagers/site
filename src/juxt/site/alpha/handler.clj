@@ -62,12 +62,12 @@
   in :default."
   [request db]
   (or
-   (openapi/locate-resource request db)
+   (openapi/locate-resource db request)
 
    (when-let [e (crux/entity db (uri request))]
      (assoc e ::site/resource-provider ::crux))
 
-   (home/locate-resource request db)
+   (home/locate-resource db request)
 
    {::site/resource-provider ::default-empty-resource
     ::http/methods #{:get :head :options}}))

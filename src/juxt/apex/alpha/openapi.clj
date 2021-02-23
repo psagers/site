@@ -29,7 +29,7 @@
 (alias 'apex (create-ns 'juxt.apex.alpha))
 
 ;; TODO: Restrict where openapis can be PUT
-(defn locate-resource [request db]
+(defn locate-resource [db request]
   ;; Do we have any OpenAPIs in the database?
   (or
    ;; The OpenAPI document

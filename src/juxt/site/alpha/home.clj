@@ -109,7 +109,7 @@
         "User's page isn't yet created"
         {::spin/response {:status 404 :body "Not Found\r\n\r\n(but coming soon!)\r\n"}})))))
 
-(defn locate-resource [request db]
+(defn locate-resource [db request]
   ;; Add a trailing slash if necessary
   (when-let [[_ _] (re-matches #"/~(\p{Alpha}[\p{Alnum}_-]*)$" (:uri request))]
     (throw ;; TODO: Promote this to a spin function
