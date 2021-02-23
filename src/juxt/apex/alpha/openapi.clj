@@ -29,7 +29,17 @@
 (alias 'apex (create-ns 'juxt.apex.alpha))
 
 ;; TODO: Restrict where openapis can be PUT
-(defn locate-resource [db request]
+(defn locate-resource
+  [db
+   ;; We'd like to locate the resource based on nothing but the URI of the
+   ;; request. This would avoid 'routing' based on other aspects of the request,
+   ;; such as headers (e.g. authorization, which should be left to the
+   ;; authorization step that follows resource location). The reason we can't
+   ;; yet do this is due to path parameters (see below). If we were to put path
+   ;; parameters at one level higher in the OpenAPI, and enforce that, then we
+   ;; could make this change.
+   request
+   ]
   ;; Do we have any OpenAPIs in the database?
   (or
    ;; The OpenAPI document
@@ -74,6 +84,8 @@
              (let [path-params
                    (->>
                     (or
+                     ;; TODO: We could mandate path parameters at the
+                     ;; path-object level, not the path-item-object
                      (get-in path-item-object [(name (:request-method request)) "parameters"])
                      (get-in path-item-object ["parameters"]))
                     (filter #(= (get % "in") "path")))
@@ -134,7 +146,7 @@
                         ;; of collection is it? Some properties that can be used in
                         ;; the PDP.
                         }
-                     (seq acceptable) (assoc ::http/acceptable {"accept" acceptable}))))))
+                       (seq acceptable) (assoc ::http/acceptable {"accept" acceptable}))))))
 
            paths)))))))
 
